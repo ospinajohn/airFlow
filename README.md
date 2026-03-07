@@ -1,20 +1,32 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# AirFlow
 
-# Run and deploy your AI Studio app
+## Descripción
 
-This contains everything you need to run your app locally.
+**AirFlow** es un proyecto de orquestación de flujos de trabajo y procesamiento de datos. Este sistema permite automatizar, monitorear y gestionar pipelines complejos de datos de manera eficiente y confiable.
 
-View your app in AI Studio: https://ai.studio/apps/47ec0b09-7a77-4944-96f6-b136ed4a632a
+## ¿Qué hace?
 
-## Run Locally
+AirFlow proporciona:
 
-**Prerequisites:**  Node.js
+- **Orquestación de flujos de trabajo**: Define y ejecuta tareas complejas en forma de DAGs (Grafos Acíclicos Dirigidos)
+- **Automatización de procesos**: Ejecuta procesos de datos automáticamente según cronogramas predefinidos
+- **Monitoreo y logging**: Seguimiento en tiempo real del estado de los trabajos y registros detallados
+- **Manejo de dependencias**: Gestiona las relaciones entre tareas para asegurar el orden correcto de ejecución
+- **Recuperación ante fallos**: Reintentos automáticos y manejo robusto de errores
+- **Escalabilidad**: Diseñado para manejar pipelines de datos a gran escala
 
+## Casos de uso
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+- Procesamiento y transformación de datos
+- Pipelines ETL (Extract, Transform, Load)
+- Análisis de datos automatizado
+- Integración de sistemas
+- Tareas programadas complejas
+
+## Características principales
+
+✅ Interfaz web para visualización y control  
+✅ Ejecución distribuida de tareas  
+✅ Variables y secretos seguros  
+✅ Notificaciones y alertas  
+✅ Historial y auditoría completa
