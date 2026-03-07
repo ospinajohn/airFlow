@@ -24,7 +24,7 @@ interface KanbanCardProps {
   onDelete?: (id: string) => void;
   projects?: Project[];
   selected?: boolean;
-  onToggleSelect?: (id: string) => void;
+  onToggleSelect?: (id: string, shiftKey: boolean) => void;
 }
 
 export const KanbanCard: React.FC<KanbanCardProps> = ({
@@ -115,11 +115,12 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({
         {onToggleSelect && (
           <button
             onPointerDown={(e) => {
+              e.preventDefault();
               e.stopPropagation();
             }}
             onClick={(e) => {
               e.stopPropagation();
-              onToggleSelect(task.id);
+              onToggleSelect(task.id, e.shiftKey);
             }}
             className={`absolute top-2 left-2 w-4 h-4 rounded border transition-all ${
               selected

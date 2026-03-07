@@ -2,12 +2,14 @@ import React, { useMemo, useState } from 'react';
 import { motion } from 'motion/react';
 import { BarChart3, TrendingUp, Target, Flame, Calendar, CheckCircle2 } from 'lucide-react';
 import { Task } from '../types';
-import { format, subDays, isSameDay } from 'date-fns';
+import { format, subDays, isSameDay, startOfWeek, endOfWeek, isWithinInterval } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 interface AnalyticsViewProps {
   tasks: Task[];
+  onPlanNextWeek?: () => void;
+  isPlanningNextWeek?: boolean;
 }
 
 interface ChartPoint {
@@ -24,8 +26,10 @@ const MODE_LABELS: Record<AnalyticsMode, string> = {
   created: 'Creadas',
 };
 
-export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ tasks }) => {
+export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ tasks, onPlanNextWeek, isPlanningNextWeek = false }) => {
   const [mode, setMode] = useState<AnalyticsMode>('planned');
+  const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
+  const weekEnd = endOfWeek(new Date(), { weekStartsOn: 1 });
 
   const modeTasks = useMemo(() => {
     if (mode === 'completed') {
@@ -76,6 +80,24 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ tasks }) => {
   const pendingTasks = tasks.filter(t => t.status !== 'done').length;
   const streak = calculateStreak(last7Days);
   const todayCount = last7Days[last7Days.length - 1]?.count ?? 0;
+  const weeklyCompleted = tasks.filter((task) => {
+    if (task.status !== 'done') return false;
+    const completedDate = task.completed_at ? new Date(task.completed_at) : new Date(task.created_at);
+    return isWithinInterval(completedDate, { start: weekStart, end: weekEnd });
+  }).length;
+
+  const weeklyCreated = tasks.filter((task) => {
+    const createdDate = new Date(task.created_at);
+    return isWithinInterval(createdDate, { start: weekStart, end: weekEnd });
+  }).length;
+
+  const carryOver = tasks.filter((task) => {
+    if (task.status === 'done') return false;
+    const createdDate = new Date(task.created_at);
+    return createdDate < weekStart;
+  }).length;
+
+  const suggestedForNextWeek = tasks.filter((task) => task.status === 'backlog').length;
 
   const tooltipTextByMode: Record<AnalyticsMode, string> = {
     completed: 'tareas completadas',
@@ -232,6 +254,45 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ tasks }) => {
               <span>{pendingTasks} tareas pendientes por completar</span>
             </div>
           </div>
+        </div>
+
+        <div className="glass rounded-2xl p-6 space-y-5 border border-white/10">
+          <div className="flex items-center justify-between">
+            <div>
+              <h4 className="text-sm font-mono uppercase tracking-widest text-white/40">Revisión Semanal Automática</h4>
+              <p className="text-xs text-white/40 mt-1">Semana actual: {format(weekStart, 'd MMM', { locale: es })} - {format(weekEnd, 'd MMM', { locale: es })}</p>
+            </div>
+            <button
+              disabled={!onPlanNextWeek || isPlanningNextWeek || suggestedForNextWeek === 0}
+              onClick={() => onPlanNextWeek?.()}
+              className="px-3 py-2 rounded-lg bg-flow-accent/20 hover:bg-flow-accent/30 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold text-flow-accent transition-all"
+            >
+              {isPlanningNextWeek ? 'Planificando...' : 'Planificar próxima semana'}
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <div className="rounded-xl bg-white/5 p-3">
+              <p className="text-[10px] uppercase tracking-widest text-white/35">Completadas</p>
+              <p className="text-xl font-display font-bold text-emerald-300">{weeklyCompleted}</p>
+            </div>
+            <div className="rounded-xl bg-white/5 p-3">
+              <p className="text-[10px] uppercase tracking-widest text-white/35">Creadas</p>
+              <p className="text-xl font-display font-bold text-blue-300">{weeklyCreated}</p>
+            </div>
+            <div className="rounded-xl bg-white/5 p-3">
+              <p className="text-[10px] uppercase tracking-widest text-white/35">Arrastradas</p>
+              <p className="text-xl font-display font-bold text-amber-300">{carryOver}</p>
+            </div>
+            <div className="rounded-xl bg-white/5 p-3">
+              <p className="text-[10px] uppercase tracking-widest text-white/35">Backlog sugerido</p>
+              <p className="text-xl font-display font-bold text-flow-accent">{Math.min(suggestedForNextWeek, 3)}</p>
+            </div>
+          </div>
+
+          <p className="text-xs text-white/45 leading-relaxed">
+            Al planificar, el sistema toma hasta 3 tareas de backlog por prioridad y las mueve a Hoy para arrancar la próxima semana con foco.
+          </p>
         </div>
       </div>
     </motion.div>

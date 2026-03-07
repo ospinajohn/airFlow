@@ -34,6 +34,7 @@ export default function App() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [autoStartPomodoro, setAutoStartPomodoro] = useState(false); // Por defecto desactivado
+  const [showKanbanHealthCheck, setShowKanbanHealthCheck] = useState(false); // Por defecto desactivado
   const [showSettings, setShowSettings] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<{ id: string; title: string } | null>(null);
   const [isDeletingTask, setIsDeletingTask] = useState(false); 
@@ -43,6 +44,8 @@ export default function App() {
   const [overColumnId, setOverColumnId] = useState<string | null>(null);
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
   const [isBulkUpdating, setIsBulkUpdating] = useState(false);
+  const [lastSelectedTaskId, setLastSelectedTaskId] = useState<string | null>(null);
+  const [isPlanningNextWeek, setIsPlanningNextWeek] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -63,6 +66,7 @@ export default function App() {
   useEffect(() => {
     if (view !== 'kanban' && selectedTaskIds.length > 0) {
       setSelectedTaskIds([]);
+      setLastSelectedTaskId(null);
     }
   }, [view, selectedTaskIds.length]);
 
@@ -172,13 +176,44 @@ export default function App() {
     handleTaskStatusChange(id, newStatus);
   };
 
-  const toggleTaskSelection = (id: string) => {
-    setSelectedTaskIds((prev) =>
-      prev.includes(id) ? prev.filter((taskId) => taskId !== id) : [...prev, id]
-    );
+  const toggleTaskSelection = (id: string, shiftKey = false, orderedIds: string[] = []) => {
+    setSelectedTaskIds((prev) => {
+      if (shiftKey && lastSelectedTaskId && orderedIds.length > 0) {
+        const startIndex = orderedIds.indexOf(lastSelectedTaskId);
+        const endIndex = orderedIds.indexOf(id);
+
+        if (startIndex !== -1 && endIndex !== -1) {
+          const [from, to] = startIndex < endIndex ? [startIndex, endIndex] : [endIndex, startIndex];
+          const rangeIds = orderedIds.slice(from, to + 1);
+          return Array.from(new Set([...prev, ...rangeIds]));
+        }
+      }
+
+      return prev.includes(id) ? prev.filter((taskId) => taskId !== id) : [...prev, id];
+    });
+
+    setLastSelectedTaskId(id);
   };
 
-  const clearTaskSelection = () => setSelectedTaskIds([]);
+  const toggleColumnSelection = (columnTaskIds: string[]) => {
+    if (columnTaskIds.length === 0) return;
+
+    setSelectedTaskIds((prev) => {
+      const allSelected = columnTaskIds.every((id) => prev.includes(id));
+      if (allSelected) {
+        return prev.filter((id) => !columnTaskIds.includes(id));
+      }
+
+      return Array.from(new Set([...prev, ...columnTaskIds]));
+    });
+
+    setLastSelectedTaskId(columnTaskIds[0]);
+  };
+
+  const clearTaskSelection = () => {
+    setSelectedTaskIds([]);
+    setLastSelectedTaskId(null);
+  };
 
   const bulkUpdateSelected = async (updates: Partial<Task>) => {
     if (selectedTaskIds.length === 0) return;
@@ -232,6 +267,56 @@ export default function App() {
     }
   };
 
+  const handlePlanNextWeek = async () => {
+    const candidates = tasks
+      .filter((t) => t.status === 'backlog')
+      .sort((a, b) => (b.priority - a.priority) || new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+      .slice(0, 3);
+
+    if (candidates.length === 0) return;
+
+    const now = new Date();
+    const nextMonday = new Date(now);
+    const day = now.getDay();
+    const daysUntilNextMonday = ((8 - day) % 7) || 7;
+    nextMonday.setDate(now.getDate() + daysUntilNextMonday);
+    nextMonday.setHours(9, 0, 0, 0);
+
+    setIsPlanningNextWeek(true);
+    setTasks((prev) =>
+      prev.map((task) =>
+        candidates.some((candidate) => candidate.id === task.id)
+          ? {
+              ...task,
+              status: 'todo',
+              due_date: task.due_date || nextMonday.toISOString(),
+            }
+          : task
+      )
+    );
+
+    try {
+      await Promise.all(
+        candidates.map((task) =>
+          fetch(`/api/tasks/${task.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              status: 'todo',
+              due_date: task.due_date || nextMonday.toISOString(),
+            }),
+          })
+        )
+      );
+      await fetchTasks();
+    } catch (err) {
+      console.error(err);
+      await fetchTasks();
+    } finally {
+      setIsPlanningNextWeek(false);
+    }
+  };
+
   const findColumnId = (id: string): TaskStatus | undefined => {
     if (['backlog', 'todo', 'doing', 'done'].includes(id)) return id as TaskStatus;
     return tasks.find(t => t.id === id)?.status;
@@ -281,6 +366,50 @@ export default function App() {
   };
 
   const activeTask = activeId ? tasks.find((t) => t.id === activeId) : null;
+  const nowMs = Date.now();
+  const doingTasks = tasks.filter((t) => t.status === 'doing');
+  const overdueTasks = tasks.filter((t) => t.status !== 'done' && t.due_date && new Date(t.due_date).getTime() < nowMs);
+  const noDateTasks = tasks.filter((t) => (t.status === 'todo' || t.status === 'doing') && !t.due_date);
+  const staleTasks = doingTasks.filter((t) => {
+    const createdAt = new Date(t.created_at).getTime();
+    if (Number.isNaN(createdAt)) return false;
+    return nowMs - createdAt > 1000 * 60 * 60 * 24 * 3;
+  });
+
+  const healthItems = [
+    {
+      key: 'doing',
+      label: 'WIP en Doing',
+      value: doingTasks.length,
+      threshold: 5,
+      okText: 'Balanceado',
+      warnText: 'Sobrecarga',
+    },
+    {
+      key: 'overdue',
+      label: 'Vencidas',
+      value: overdueTasks.length,
+      threshold: 0,
+      okText: 'Al día',
+      warnText: 'Atención',
+    },
+    {
+      key: 'nodate',
+      label: 'Sin fecha',
+      value: noDateTasks.length,
+      threshold: 2,
+      okText: 'Priorizado',
+      warnText: 'Sin claridad',
+    },
+    {
+      key: 'stale',
+      label: 'Bloqueadas +3d',
+      value: staleTasks.length,
+      threshold: 0,
+      okText: 'Fluyendo',
+      warnText: 'Atascado',
+    },
+  ];
 
   return (
     <div className="h-screen w-screen flex flex-col overflow-hidden bg-flow-bg">
@@ -349,10 +478,10 @@ export default function App() {
               <AnimatePresence>
                 {selectedTaskIds.length > 0 && (
                   <motion.div
-                    initial={{ opacity: 0, y: -12 }}
+                    initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -12 }}
-                    className="fixed top-6 left-1/2 -translate-x-1/2 z-50 glass rounded-2xl px-4 py-3 flex items-center gap-2"
+                    exit={{ opacity: 0, y: 12 }}
+                    className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 glass rounded-2xl px-4 py-3 flex items-center gap-2 max-w-[calc(100vw-2rem)] overflow-x-auto no-scrollbar"
                   >
                     <div className="flex items-center gap-2 pr-2 mr-2 border-r border-white/10">
                       <CheckSquare className="w-4 h-4 text-flow-accent" />
@@ -415,6 +544,26 @@ export default function App() {
                 )}
               </AnimatePresence>
 
+              {showKanbanHealthCheck && (
+                <div className="fixed top-6 right-8 z-40 w-64 glass rounded-2xl p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-mono uppercase tracking-widest text-white/35">Health Check</p>
+                    <span className="text-[10px] text-flow-accent/80">Tablero</span>
+                  </div>
+                  {healthItems.map((item) => {
+                    const isHealthy = item.value <= item.threshold;
+                    return (
+                      <div key={item.key} className="flex items-center justify-between text-[11px] py-1 border-b border-white/5 last:border-b-0">
+                        <span className="text-white/55">{item.label}</span>
+                        <span className={isHealthy ? 'text-emerald-300' : 'text-amber-300'}>
+                          {item.value} · {isHealthy ? item.okText : item.warnText}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
               <motion.div
                 key="kanban"
                 initial={{ opacity: 0, y: 20 }}
@@ -435,6 +584,7 @@ export default function App() {
                   isDragging={!!activeId}
                   selectedTaskIds={selectedTaskIds}
                   onToggleTaskSelect={toggleTaskSelection}
+                  onToggleColumnSelect={toggleColumnSelection}
                 />
                 <KanbanColumn 
                   id="todo"
@@ -449,6 +599,7 @@ export default function App() {
                   isDragging={!!activeId}
                   selectedTaskIds={selectedTaskIds}
                   onToggleTaskSelect={toggleTaskSelection}
+                  onToggleColumnSelect={toggleColumnSelection}
                 />
                 <KanbanColumn 
                   id="doing"
@@ -462,6 +613,7 @@ export default function App() {
                   isDragging={!!activeId}
                   selectedTaskIds={selectedTaskIds}
                   onToggleTaskSelect={toggleTaskSelection}
+                  onToggleColumnSelect={toggleColumnSelection}
                 />
                 <KanbanColumn 
                   id="done"
@@ -475,6 +627,7 @@ export default function App() {
                   isDragging={!!activeId}
                   selectedTaskIds={selectedTaskIds}
                   onToggleTaskSelect={toggleTaskSelection}
+                  onToggleColumnSelect={toggleColumnSelection}
                 />
               </motion.div>
 
@@ -633,7 +786,11 @@ export default function App() {
               exit={{ opacity: 0, y: -20 }}
               className="h-full p-12 pl-24 overflow-y-auto"
             >
-              <AnalyticsView tasks={tasks} />
+              <AnalyticsView
+                tasks={tasks}
+                onPlanNextWeek={handlePlanNextWeek}
+                isPlanningNextWeek={isPlanningNextWeek}
+              />
             </motion.div>
           )}
         </AnimatePresence>
@@ -703,6 +860,22 @@ export default function App() {
                       Domingo
                     </button>
                   </div>
+                </div>
+
+                <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl">
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium">Panel Health Check en Kanban</p>
+                    <p className="text-xs text-white/40">Muestra el panel fijo de métricas operativas en el tablero</p>
+                  </div>
+                  <button
+                    onClick={() => setShowKanbanHealthCheck(!showKanbanHealthCheck)}
+                    className={`w-12 h-6 rounded-full transition-colors relative ${showKanbanHealthCheck ? 'bg-flow-accent' : 'bg-white/10'}`}
+                  >
+                    <motion.div
+                      animate={{ x: showKanbanHealthCheck ? 24 : 4 }}
+                      className="absolute top-1 w-4 h-4 rounded-full bg-white shadow-sm"
+                    />
+                  </button>
                 </div>
               </div>
 
@@ -813,9 +986,12 @@ function DropZone({ label, color }: { label: string, color: string }) {
   );
 }
 
-function KanbanColumn({ id, title, subtitle, color, tasks, onTaskClick, onDelete, projects, isOver, isDragging, selectedTaskIds, onToggleTaskSelect }: { id: string, title: string, subtitle?: string, color: string, tasks: Task[], onTaskClick: (task: Task) => void, onDelete: (id: string) => void, projects: Project[], isOver?: boolean, isDragging?: boolean, selectedTaskIds: string[], onToggleTaskSelect: (id: string) => void }) {
+function KanbanColumn({ id, title, subtitle, color, tasks, onTaskClick, onDelete, projects, isOver, isDragging, selectedTaskIds, onToggleTaskSelect, onToggleColumnSelect }: { id: string, title: string, subtitle?: string, color: string, tasks: Task[], onTaskClick: (task: Task) => void, onDelete: (id: string) => void, projects: Project[], isOver?: boolean, isDragging?: boolean, selectedTaskIds: string[], onToggleTaskSelect: (id: string, shiftKey: boolean, orderedIds: string[]) => void, onToggleColumnSelect: (columnTaskIds: string[]) => void }) {
   const { setNodeRef, isOver: isDirectlyOver } = useDroppable({ id });
   const highlighted = isOver || isDirectlyOver;
+  const taskIds = tasks.map((t) => t.id);
+  const selectedCount = taskIds.filter((taskId) => selectedTaskIds.includes(taskId)).length;
+  const allSelected = taskIds.length > 0 && selectedCount === taskIds.length;
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -844,6 +1020,16 @@ function KanbanColumn({ id, title, subtitle, color, tasks, onTaskClick, onDelete
         {subtitle && (
           <span className="text-[10px] text-white/25 font-normal">{subtitle}</span>
         )}
+        <button
+          onClick={() => onToggleColumnSelect(taskIds)}
+          className={`p-1 rounded-md transition-all ${
+            allSelected ? 'text-flow-accent bg-flow-accent/10' : 'text-white/25 hover:text-white/60 hover:bg-white/5'
+          }`}
+          title={allSelected ? 'Deseleccionar columna' : 'Seleccionar columna'}
+        >
+          {allSelected ? <CheckSquare className="w-3.5 h-3.5" /> : <Square className="w-3.5 h-3.5" />}
+        </button>
+        {selectedCount > 0 && <span className="text-[10px] text-flow-accent/80">{selectedCount}</span>}
         <span className={`text-[11px] font-mono ml-auto transition-colors duration-200 ${
           highlighted && isDragging ? 'text-white/50' : 'text-white/25'
         }`}>{tasks.length}</span>
@@ -867,7 +1053,7 @@ function KanbanColumn({ id, title, subtitle, color, tasks, onTaskClick, onDelete
               onDelete={onDelete}
               projects={projects}
               selected={selectedTaskIds.includes(task.id)}
-              onToggleSelect={onToggleTaskSelect}
+              onToggleSelect={(id, shiftKey) => onToggleTaskSelect(id, shiftKey, taskIds)}
             />
           ))}
         </SortableContext>
