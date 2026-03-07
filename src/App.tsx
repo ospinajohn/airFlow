@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { LayoutGrid, List, Calendar, Settings, Zap, Plus, X, AlertTriangle, Trash2 } from 'lucide-react';
+import { LayoutGrid, List, Calendar, Settings, Zap, Plus, X, AlertTriangle, Trash2, Clock } from 'lucide-react';
 import {
   DndContext,
   rectIntersection,
@@ -649,6 +649,16 @@ function KanbanColumn({ id, title, subtitle, color, tasks, onTaskClick, onDelete
   const { setNodeRef, isOver: isDirectlyOver } = useDroppable({ id });
   const highlighted = isOver || isDirectlyOver;
 
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'backlog': return <Clock className="w-3.5 h-3.5 text-white/40" />;
+      case 'todo': return <Zap className="w-3.5 h-3.5 text-flow-accent" />;
+      case 'doing': return <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 4, ease: "linear" }}><Settings className="w-3.5 h-3.5 text-amber-400" /></motion.div>;
+      case 'done': return <div className="w-3.5 h-3.5 rounded-full bg-emerald-500/20 flex items-center justify-center"><div className="w-1.5 h-1.5 rounded-full bg-emerald-500" /></div>;
+      default: return null;
+    }
+  };
+
   return (
     <div className={`flex-shrink-0 w-72 flex flex-col rounded-xl transition-colors duration-200 ${
       highlighted && isDragging ? 'bg-white/[0.03]' : ''
@@ -661,6 +671,7 @@ function KanbanColumn({ id, title, subtitle, color, tasks, onTaskClick, onDelete
           }`}
           style={{ backgroundColor: color }}
         />
+        {getStatusIcon(id)}
         <h3 className="text-sm font-medium text-white/80">{title}</h3>
         {subtitle && (
           <span className="text-[10px] text-white/25 font-normal">{subtitle}</span>
@@ -694,8 +705,8 @@ function KanbanColumn({ id, title, subtitle, color, tasks, onTaskClick, onDelete
         {/* Empty state */}
         {tasks.length === 0 && !isDragging && (
           <div className="flex flex-col items-center justify-center py-12 px-4">
-            <div className="w-8 h-8 rounded-lg border border-dashed border-white/10 flex items-center justify-center mb-2">
-              <Plus className="w-3.5 h-3.5 text-white/15" />
+            <div className="w-8 h-8 rounded-lg border border-dashed border-white/10 flex items-center justify-center mb-2 hover:bg-white/5 text-white/20 hover:text-white/40 text-xs font-medium transition-all">
+              <Plus className="w-3.5 h-3.5 text-white/15 group-hover/add:scale-110 transition-transform" />
             </div>
             <p className="text-[11px] text-white/15">Sin tareas</p>
           </div>
