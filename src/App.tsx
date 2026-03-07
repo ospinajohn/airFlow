@@ -3,20 +3,20 @@ import { motion, AnimatePresence } from 'motion/react';
 import { LayoutGrid, List, Calendar, Settings, Zap, Plus, X, AlertTriangle, Trash2 } from 'lucide-react';
 import {
   DndContext,
-  closestCorners,
+  rectIntersection,
   KeyboardSensor,
   PointerSensor,
   useSensor,
   useSensors,
   DragOverlay,
   defaultDropAnimationSideEffects,
+  useDroppable,
 } from '@dnd-kit/core';
 import {
   arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
-  useSortable,
 } from '@dnd-kit/sortable';
 import { CommandBar } from './components/CommandBar';
 import { TaskBubble } from './components/TaskBubble';
@@ -39,10 +39,12 @@ export default function App() {
   const [projectsViewMode, setProjectsViewMode] = useState<'grid' | 'calendar'>('grid');
   const [weekStartsOn, setWeekStartsOn] = useState<0 | 1>(1); // 0 = Domingo, 1 = Lunes
 
+  const [overColumnId, setOverColumnId] = useState<string | null>(null);
+
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 5,
+        distance: 3,
       },
     }),
     useSensor(KeyboardSensor, {
@@ -161,50 +163,52 @@ export default function App() {
     handleTaskStatusChange(id, newStatus);
   };
 
+  const findColumnId = (id: string): TaskStatus | undefined => {
+    if (['backlog', 'todo', 'doing', 'done'].includes(id)) return id as TaskStatus;
+    return tasks.find(t => t.id === id)?.status;
+  };
+
   const handleDragStart = (event: any) => {
     setActiveId(event.active.id);
+    const columnId = findColumnId(event.active.id);
+    setOverColumnId(columnId || null);
   };
 
   const handleDragOver = (event: any) => {
     const { active, over } = event;
-    if (!over) return;
-
-    const activeTask = tasks.find((t) => t.id === active.id);
-    const overId = over.id;
-
-    // Find the container (status) of the over element
-    let overStatus: TaskStatus | undefined;
-    
-    // If over is a column ID
-    if (['backlog', 'todo', 'doing', 'done'].includes(overId)) {
-      overStatus = overId as TaskStatus;
-    } else {
-      // If over is a task ID
-      const overTask = tasks.find((t) => t.id === overId);
-      overStatus = overTask?.status;
+    if (!over) {
+      setOverColumnId(null);
+      return;
     }
 
+    const activeTask = tasks.find((t) => t.id === active.id);
+    const overStatus = findColumnId(over.id as string);
+
+    setOverColumnId(overStatus || null);
+
     if (activeTask && overStatus && activeTask.status !== overStatus) {
-      setTasks((prev) => {
-        const activeIndex = prev.findIndex((t) => t.id === active.id);
-        const newTasks = [...prev];
-        newTasks[activeIndex] = { ...newTasks[activeIndex], status: overStatus! };
-        return newTasks;
-      });
+      setTasks((prev) => prev.map(t =>
+        t.id === active.id ? { ...t, status: overStatus } : t
+      ));
     }
   };
 
   const handleDragEnd = async (event: any) => {
     const { active, over } = event;
     setActiveId(null);
+    setOverColumnId(null);
 
     if (!over) return;
 
     const activeTask = tasks.find((t) => t.id === active.id);
     if (!activeTask) return;
 
-    // Persist status change
     handleTaskStatusChange(activeTask.id, activeTask.status);
+  };
+
+  const handleDragCancel = () => {
+    setActiveId(null);
+    setOverColumnId(null);
   };
 
   const activeTask = activeId ? tasks.find((t) => t.id === activeId) : null;
@@ -259,60 +263,81 @@ export default function App() {
           {view === 'kanban' && (
             <DndContext
               sensors={sensors}
-              collisionDetection={closestCorners}
+              collisionDetection={rectIntersection}
               onDragStart={handleDragStart}
               onDragOver={handleDragOver}
               onDragEnd={handleDragEnd}
+              onDragCancel={handleDragCancel}
             >
               <motion.div
                 key="kanban"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 20 }}
-                className="h-full p-12 pl-24 overflow-x-auto flex gap-8 no-scrollbar"
+                className="h-full p-8 pl-24 overflow-x-auto flex gap-6 no-scrollbar"
               >
                 <KanbanColumn 
                   id="backlog"
-                  title="Pendientes (Luego)" 
+                  title="Pendientes" 
+                  subtitle="Luego"
+                  color="#6B7280"
                   tasks={tasks.filter(t => t.status === 'backlog')} 
                   onTaskClick={setFocusedTask}
                   onDelete={handleTaskDelete}
+                  projects={projects}
+                  isOver={overColumnId === 'backlog'}
+                  isDragging={!!activeId}
                 />
                 <KanbanColumn 
                   id="todo"
-                  title="Por Hacer (Hoy)" 
+                  title="Por Hacer" 
+                  subtitle="Hoy"
+                  color="#3B82F6"
                   tasks={tasks.filter(t => t.status === 'todo')} 
                   onTaskClick={setFocusedTask}
                   onDelete={handleTaskDelete}
+                  projects={projects}
+                  isOver={overColumnId === 'todo'}
+                  isDragging={!!activeId}
                 />
                 <KanbanColumn 
                   id="doing"
                   title="En Proceso" 
+                  color="#F59E0B"
                   tasks={tasks.filter(t => t.status === 'doing')} 
                   onTaskClick={setFocusedTask}
                   onDelete={handleTaskDelete}
+                  projects={projects}
+                  isOver={overColumnId === 'doing'}
+                  isDragging={!!activeId}
                 />
                 <KanbanColumn 
                   id="done"
                   title="Hecho" 
+                  color="#10B981"
                   tasks={tasks.filter(t => t.status === 'done')} 
                   onTaskClick={setFocusedTask}
                   onDelete={handleTaskDelete}
+                  projects={projects}
+                  isOver={overColumnId === 'done'}
+                  isDragging={!!activeId}
                 />
               </motion.div>
 
               <DragOverlay dropAnimation={{
+                duration: 200,
+                easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.22)',
                 sideEffects: defaultDropAnimationSideEffects({
                   styles: {
                     active: {
-                      opacity: '0.5',
+                      opacity: '0.4',
                     },
                   },
                 }),
               }}>
                 {activeTask ? (
-                  <div className="w-80 opacity-80 rotate-3 scale-105">
-                    <KanbanCard task={activeTask} onClick={() => {}} />
+                  <div className="w-72 rotate-1 scale-[1.02] shadow-2xl shadow-black/50">
+                    <KanbanCard task={activeTask} onClick={() => {}} projects={projects} />
                   </div>
                 ) : null}
               </DragOverlay>
@@ -620,16 +645,40 @@ function DropZone({ label, color }: { label: string, color: string }) {
   );
 }
 
-function KanbanColumn({ id, title, tasks, onTaskClick, onDelete }: { id: string, title: string, tasks: Task[], onTaskClick: (task: Task) => void, onDelete: (id: string) => void }) {
-  const { setNodeRef } = useSortable({ id });
+function KanbanColumn({ id, title, subtitle, color, tasks, onTaskClick, onDelete, projects, isOver, isDragging }: { id: string, title: string, subtitle?: string, color: string, tasks: Task[], onTaskClick: (task: Task) => void, onDelete: (id: string) => void, projects: Project[], isOver?: boolean, isDragging?: boolean }) {
+  const { setNodeRef, isOver: isDirectlyOver } = useDroppable({ id });
+  const highlighted = isOver || isDirectlyOver;
 
   return (
-    <div className="flex-shrink-0 w-80 flex flex-col gap-4">
-      <div className="flex items-center justify-between px-2">
-        <h3 className="font-display font-semibold text-white/60 uppercase text-xs tracking-widest">{title}</h3>
-        <span className="text-[10px] font-mono text-white/20 bg-white/5 px-2 py-0.5 rounded-full">{tasks.length}</span>
+    <div className={`flex-shrink-0 w-72 flex flex-col rounded-xl transition-colors duration-200 ${
+      highlighted && isDragging ? 'bg-white/[0.03]' : ''
+    }`}>
+      {/* Column header - Notion style */}
+      <div className="flex items-center gap-2 px-2 pb-3 mb-1">
+        <div
+          className={`w-2.5 h-2.5 rounded-sm flex-shrink-0 transition-transform duration-200 ${
+            highlighted && isDragging ? 'scale-125' : ''
+          }`}
+          style={{ backgroundColor: color }}
+        />
+        <h3 className="text-sm font-medium text-white/80">{title}</h3>
+        {subtitle && (
+          <span className="text-[10px] text-white/25 font-normal">{subtitle}</span>
+        )}
+        <span className={`text-[11px] font-mono ml-auto transition-colors duration-200 ${
+          highlighted && isDragging ? 'text-white/50' : 'text-white/25'
+        }`}>{tasks.length}</span>
       </div>
-      <div ref={setNodeRef} className="flex-1 space-y-3 min-h-[500px]">
+
+      {/* Cards container */}
+      <div
+        ref={setNodeRef}
+        className={`flex-1 space-y-2 min-h-[500px] pb-20 px-1 rounded-lg transition-all duration-200 ${
+          highlighted && isDragging
+            ? 'ring-1 ring-white/10 bg-white/[0.02]'
+            : isDragging ? 'ring-1 ring-transparent' : ''
+        }`}
+      >
         <SortableContext items={tasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
           {tasks.map(task => (
             <KanbanCard 
@@ -637,9 +686,31 @@ function KanbanColumn({ id, title, tasks, onTaskClick, onDelete }: { id: string,
               task={task} 
               onClick={onTaskClick} 
               onDelete={onDelete}
+              projects={projects}
             />
           ))}
         </SortableContext>
+
+        {/* Empty state */}
+        {tasks.length === 0 && !isDragging && (
+          <div className="flex flex-col items-center justify-center py-12 px-4">
+            <div className="w-8 h-8 rounded-lg border border-dashed border-white/10 flex items-center justify-center mb-2">
+              <Plus className="w-3.5 h-3.5 text-white/15" />
+            </div>
+            <p className="text-[11px] text-white/15">Sin tareas</p>
+          </div>
+        )}
+
+        {/* Drop hint when dragging over empty column */}
+        {tasks.length === 0 && isDragging && (
+          <div className={`flex items-center justify-center py-10 rounded-lg border border-dashed transition-all duration-200 ${
+            highlighted ? 'border-white/20 bg-white/[0.03]' : 'border-white/5'
+          }`}>
+            <p className={`text-[11px] transition-colors duration-200 ${
+              highlighted ? 'text-white/40' : 'text-white/10'
+            }`}>Soltar aquí</p>
+          </div>
+        )}
       </div>
     </div>
   );
