@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { motion } from 'motion/react';
-import { Calendar, Clock, Trash2, Flag, Play } from 'lucide-react';
+import { Calendar, Clock, Trash2, Flag, Play, TimerReset, Sunrise, CalendarDays } from 'lucide-react';
 import { Task, Project } from '../types';
 
 const STATUS_COLORS: Record<string, string> = {
@@ -25,6 +25,8 @@ interface KanbanCardProps {
   projects?: Project[];
   selected?: boolean;
   onToggleSelect?: (id: string, shiftKey: boolean) => void;
+  onSnooze?: (id: string, preset: 'laterToday' | 'tomorrow' | 'nextMonday') => void;
+  snoozeCount?: number;
 }
 
 export const KanbanCard: React.FC<KanbanCardProps> = ({
@@ -34,6 +36,8 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({
   projects = [],
   selected = false,
   onToggleSelect,
+  onSnooze,
+  snoozeCount = 0,
 }) => {
   const {
     attributes,
@@ -45,6 +49,7 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({
   } = useSortable({ id: task.id });
 
   const [timeUntilDue, setTimeUntilDue] = useState<string | null>(null);
+  const [showSnoozeMenu, setShowSnoozeMenu] = useState(false);
 
   const project = projects.find(p => p.id === task.project_id);
   const priority = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG[1];
@@ -85,6 +90,7 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({
   }, [task.due_date]);
 
   const isOverdue = timeUntilDue === 'Vencido';
+  const isAvoiding = snoozeCount >= 3;
 
   const style = {
     transform: CSS.Translate.toString(transform),
@@ -201,11 +207,89 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({
               <span className="font-medium">{priority.label}</span>
             </div>
           )}
+
+          {snoozeCount > 0 && (
+            <div className={`flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-md ${
+              isAvoiding ? 'bg-amber-500/15 text-amber-300' : 'bg-white/[0.04] text-white/45'
+            }`}>
+              <TimerReset className="w-3 h-3" />
+              <span>{snoozeCount} pospuesta{snoozeCount > 1 ? 's' : ''}</span>
+            </div>
+          )}
+
+          {isAvoiding && (
+            <div className="flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-md bg-red-500/15 text-red-300">
+              <span className="font-semibold">Evasión detectada</span>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Hover actions */}
       <div className="absolute top-2 right-2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-all duration-200 translate-y-1 group-hover:translate-y-0">
+        {onSnooze && (
+          <div className="relative">
+            <button
+              onPointerDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowSnoozeMenu((prev) => !prev);
+              }}
+              className="p-1.5 rounded-lg hover:bg-amber-500/20 text-white/20 hover:text-amber-300 transition-colors"
+              title="Posponer"
+            >
+              <TimerReset className="w-3.5 h-3.5" />
+            </button>
+
+            {showSnoozeMenu && (
+              <div
+                onPointerDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+                className="absolute top-8 right-0 z-20 w-40 glass rounded-xl p-1.5 space-y-1"
+              >
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSnooze(task.id, 'laterToday');
+                    setShowSnoozeMenu(false);
+                  }}
+                  className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-[11px] text-white/70 hover:text-white hover:bg-white/10"
+                >
+                  <Clock className="w-3 h-3" />
+                  Esta tarde
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSnooze(task.id, 'tomorrow');
+                    setShowSnoozeMenu(false);
+                  }}
+                  className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-[11px] text-white/70 hover:text-white hover:bg-white/10"
+                >
+                  <Sunrise className="w-3 h-3" />
+                  Mañana
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSnooze(task.id, 'nextMonday');
+                    setShowSnoozeMenu(false);
+                  }}
+                  className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-[11px] text-white/70 hover:text-white hover:bg-white/10"
+                >
+                  <CalendarDays className="w-3 h-3" />
+                  Lunes
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
         <button
           onClick={(e) => { e.stopPropagation(); onClick(task); }}
           className="p-1.5 rounded-lg hover:bg-flow-accent/20 text-white/20 hover:text-flow-accent transition-colors"

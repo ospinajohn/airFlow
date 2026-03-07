@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { LayoutGrid, List, Calendar, Settings, Zap, Plus, X, AlertTriangle, Trash2, Clock, BarChart3, CheckSquare, Square } from 'lucide-react';
+import { LayoutGrid, List, Calendar, Settings, Zap, Plus, X, AlertTriangle, Trash2, Clock, BarChart3, CheckSquare, Square, Keyboard } from 'lucide-react';
 import {
   DndContext,
   rectIntersection,
@@ -36,6 +36,7 @@ export default function App() {
   const [autoStartPomodoro, setAutoStartPomodoro] = useState(false); // Por defecto desactivado
   const [showKanbanHealthCheck, setShowKanbanHealthCheck] = useState(false); // Por defecto desactivado
   const [showSettings, setShowSettings] = useState(false);
+  const [showShortcutsCenter, setShowShortcutsCenter] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<{ id: string; title: string } | null>(null);
   const [isDeletingTask, setIsDeletingTask] = useState(false); 
   const [projectsViewMode, setProjectsViewMode] = useState<'grid' | 'calendar'>('grid');
@@ -46,6 +47,14 @@ export default function App() {
   const [isBulkUpdating, setIsBulkUpdating] = useState(false);
   const [lastSelectedTaskId, setLastSelectedTaskId] = useState<string | null>(null);
   const [isPlanningNextWeek, setIsPlanningNextWeek] = useState(false);
+  const [snoozeMeta, setSnoozeMeta] = useState<Record<string, { count: number; lastPreset: string; updatedAt: string }>>(() => {
+    try {
+      const raw = localStorage.getItem('flow-snooze-meta');
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return {};
+    }
+  });
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -69,6 +78,10 @@ export default function App() {
       setLastSelectedTaskId(null);
     }
   }, [view, selectedTaskIds.length]);
+
+  useEffect(() => {
+    localStorage.setItem('flow-snooze-meta', JSON.stringify(snoozeMeta));
+  }, [snoozeMeta]);
 
   const fetchTasks = async () => {
     try {
@@ -174,6 +187,56 @@ export default function App() {
   const handleTaskDrop = async (id: string, zone: 'hoy' | 'luego') => {
     const newStatus = zone === 'hoy' ? 'todo' : 'backlog';
     handleTaskStatusChange(id, newStatus);
+  };
+
+  const calculateSnoozeDate = (preset: 'laterToday' | 'tomorrow' | 'nextMonday') => {
+    const now = new Date();
+
+    if (preset === 'laterToday') {
+      const laterToday = new Date(now);
+      laterToday.setHours(Math.max(now.getHours() + 3, 17), 0, 0, 0);
+      return laterToday;
+    }
+
+    if (preset === 'tomorrow') {
+      const tomorrow = new Date(now);
+      tomorrow.setDate(now.getDate() + 1);
+      tomorrow.setHours(9, 0, 0, 0);
+      return tomorrow;
+    }
+
+    const nextMonday = new Date(now);
+    const day = now.getDay();
+    const daysUntilNextMonday = ((8 - day) % 7) || 7;
+    nextMonday.setDate(now.getDate() + daysUntilNextMonday);
+    nextMonday.setHours(9, 0, 0, 0);
+    return nextMonday;
+  };
+
+  const handleSnoozeTask = async (id: string, preset: 'laterToday' | 'tomorrow' | 'nextMonday') => {
+    const dueDate = calculateSnoozeDate(preset).toISOString();
+
+    setTasks((prev) => prev.map((task) => (task.id === id ? { ...task, due_date: dueDate } : task)));
+    setSnoozeMeta((prev) => ({
+      ...prev,
+      [id]: {
+        count: (prev[id]?.count || 0) + 1,
+        lastPreset: preset,
+        updatedAt: new Date().toISOString(),
+      },
+    }));
+
+    try {
+      await fetch(`/api/tasks/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ due_date: dueDate }),
+      });
+      await fetchTasks();
+    } catch (err) {
+      console.error(err);
+      await fetchTasks();
+    }
   };
 
   const toggleTaskSelection = (id: string, shiftKey = false, orderedIds: string[] = []) => {
@@ -367,6 +430,7 @@ export default function App() {
 
   const activeTask = activeId ? tasks.find((t) => t.id === activeId) : null;
   const nowMs = Date.now();
+  const weekAhead = new Date(nowMs + 1000 * 60 * 60 * 24 * 7).getTime();
   const doingTasks = tasks.filter((t) => t.status === 'doing');
   const overdueTasks = tasks.filter((t) => t.status !== 'done' && t.due_date && new Date(t.due_date).getTime() < nowMs);
   const noDateTasks = tasks.filter((t) => (t.status === 'todo' || t.status === 'doing') && !t.due_date);
@@ -408,6 +472,64 @@ export default function App() {
       threshold: 0,
       okText: 'Fluyendo',
       warnText: 'Atascado',
+    },
+  ];
+
+  const projectWorkload = (projects.length > 0 ? projects : [{ id: 'none', name: 'Sin proyecto' }]).map((project) => {
+    const scopedTasks = tasks.filter((task) => {
+      if (project.id === 'none') return !task.project_id;
+      return task.project_id === project.id;
+    });
+
+    const active = scopedTasks.filter((task) => task.status !== 'done').length;
+    const dueThisWeek = scopedTasks.filter((task) => {
+      if (!task.due_date || task.status === 'done') return false;
+      const dueMs = new Date(task.due_date).getTime();
+      return dueMs >= nowMs && dueMs <= weekAhead;
+    }).length;
+    const overdue = scopedTasks.filter((task) => {
+      if (!task.due_date || task.status === 'done') return false;
+      return new Date(task.due_date).getTime() < nowMs;
+    }).length;
+
+    const loadLevel = active > 8 ? 'high' : active > 4 ? 'medium' : 'low';
+
+    return {
+      id: project.id,
+      name: project.name,
+      color: project.id === 'none' ? '#6B7280' : projects.find((p) => p.id === project.id)?.color || '#3b82f6',
+      active,
+      dueThisWeek,
+      overdue,
+      loadLevel,
+    };
+  });
+
+  const shortcutSections = [
+    {
+      title: 'Captura rápida',
+      items: [
+        { keys: 'Ctrl/Cmd + Espacio', action: 'Abrir/cerrar captura' },
+        { keys: 'Ctrl/Cmd + K', action: 'Abrir CommandBar' },
+        { keys: 'Enter', action: 'Crear tarea' },
+        { keys: 'Esc', action: 'Cerrar overlays/modal' },
+      ],
+    },
+    {
+      title: 'Kanban Pro',
+      items: [
+        { keys: 'Arrastrar y soltar', action: 'Mover entre columnas' },
+        { keys: 'Shift + click', action: 'Seleccionar rango en columna' },
+        { keys: 'Toggle columna', action: 'Seleccionar todas de una columna' },
+      ],
+    },
+    {
+      title: 'Snooze inteligente',
+      items: [
+        { keys: 'Boton reloj', action: 'Posponer tarea' },
+        { keys: 'Esta tarde', action: 'Reagenda para hoy tarde' },
+        { keys: 'Mañana/Lunes', action: 'Reagenda a bloque futuro' },
+      ],
     },
   ];
 
@@ -585,6 +707,8 @@ export default function App() {
                   selectedTaskIds={selectedTaskIds}
                   onToggleTaskSelect={toggleTaskSelection}
                   onToggleColumnSelect={toggleColumnSelection}
+                  onSnoozeTask={handleSnoozeTask}
+                  snoozeMeta={snoozeMeta}
                 />
                 <KanbanColumn 
                   id="todo"
@@ -600,6 +724,8 @@ export default function App() {
                   selectedTaskIds={selectedTaskIds}
                   onToggleTaskSelect={toggleTaskSelection}
                   onToggleColumnSelect={toggleColumnSelection}
+                  onSnoozeTask={handleSnoozeTask}
+                  snoozeMeta={snoozeMeta}
                 />
                 <KanbanColumn 
                   id="doing"
@@ -614,6 +740,8 @@ export default function App() {
                   selectedTaskIds={selectedTaskIds}
                   onToggleTaskSelect={toggleTaskSelection}
                   onToggleColumnSelect={toggleColumnSelection}
+                  onSnoozeTask={handleSnoozeTask}
+                  snoozeMeta={snoozeMeta}
                 />
                 <KanbanColumn 
                   id="done"
@@ -628,6 +756,8 @@ export default function App() {
                   selectedTaskIds={selectedTaskIds}
                   onToggleTaskSelect={toggleTaskSelection}
                   onToggleColumnSelect={toggleColumnSelection}
+                  onSnoozeTask={handleSnoozeTask}
+                  snoozeMeta={snoozeMeta}
                 />
               </motion.div>
 
@@ -698,6 +828,43 @@ export default function App() {
                       Nuevo Proyecto
                     </button>
                   </div>
+                </div>
+
+                <div className="mb-8 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                  {projectWorkload.map((item) => (
+                    <div key={item.id} className="glass rounded-xl p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
+                          <h4 className="text-sm font-semibold text-white/85 truncate">{item.name}</h4>
+                        </div>
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                          item.loadLevel === 'high'
+                            ? 'bg-red-500/20 text-red-300'
+                            : item.loadLevel === 'medium'
+                              ? 'bg-amber-500/20 text-amber-300'
+                              : 'bg-emerald-500/20 text-emerald-300'
+                        }`}>
+                          {item.loadLevel === 'high' ? 'Alta carga' : item.loadLevel === 'medium' ? 'Carga media' : 'Carga sana'}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-2">
+                        <div className="rounded-lg bg-white/5 p-2">
+                          <p className="text-[10px] text-white/35 uppercase tracking-wider">Activas</p>
+                          <p className="text-lg font-display font-bold text-white/85">{item.active}</p>
+                        </div>
+                        <div className="rounded-lg bg-white/5 p-2">
+                          <p className="text-[10px] text-white/35 uppercase tracking-wider">Semana</p>
+                          <p className="text-lg font-display font-bold text-blue-300">{item.dueThisWeek}</p>
+                        </div>
+                        <div className="rounded-lg bg-white/5 p-2">
+                          <p className="text-[10px] text-white/35 uppercase tracking-wider">Vencidas</p>
+                          <p className="text-lg font-display font-bold text-rose-300">{item.overdue}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
                 
                 <AnimatePresence mode="wait">
@@ -877,9 +1044,72 @@ export default function App() {
                     />
                   </button>
                 </div>
+
+                <button
+                  onClick={() => setShowShortcutsCenter(true)}
+                  className="w-full flex items-center justify-between p-4 bg-white/5 rounded-xl hover:bg-white/10 transition-all"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-flow-accent/20 text-flow-accent flex items-center justify-center">
+                      <Keyboard className="w-4 h-4" />
+                    </div>
+                    <div className="text-left">
+                      <p className="text-sm font-medium">Centro de Atajos y Comandos</p>
+                      <p className="text-xs text-white/40">Guía rápida para dominar el flujo</p>
+                    </div>
+                  </div>
+                  <span className="text-xs text-white/35">Abrir</span>
+                </button>
               </div>
 
               <p className="text-[10px] text-white/20 text-center uppercase tracking-widest">The Flow OS v1.0</p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Shortcuts Center */}
+      <AnimatePresence>
+        {showShortcutsCenter && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[70] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={() => setShowShortcutsCenter(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="w-full max-w-3xl glass rounded-2xl p-6 space-y-6 max-h-[80vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <h2 className="text-xl font-display font-semibold">Centro de Atajos y Comandos</h2>
+                  <p className="text-xs text-white/40">Referencia rápida para moverte más rápido en Flow OS</p>
+                </div>
+                <button onClick={() => setShowShortcutsCenter(false)} className="p-2 hover:bg-white/5 rounded-full">
+                  <X className="w-5 h-5 text-white/40" />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {shortcutSections.map((section) => (
+                  <div key={section.title} className="rounded-xl bg-white/5 p-4 space-y-3">
+                    <h3 className="text-sm font-mono uppercase tracking-widest text-flow-accent/70">{section.title}</h3>
+                    <div className="space-y-2">
+                      {section.items.map((item) => (
+                        <div key={`${section.title}-${item.keys}`} className="flex items-start justify-between gap-3">
+                          <span className="text-[10px] px-2 py-1 rounded bg-white/10 text-white/75 font-mono">{item.keys}</span>
+                          <span className="text-xs text-white/55 text-right leading-relaxed">{item.action}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </motion.div>
           </motion.div>
         )}
@@ -986,7 +1216,7 @@ function DropZone({ label, color }: { label: string, color: string }) {
   );
 }
 
-function KanbanColumn({ id, title, subtitle, color, tasks, onTaskClick, onDelete, projects, isOver, isDragging, selectedTaskIds, onToggleTaskSelect, onToggleColumnSelect }: { id: string, title: string, subtitle?: string, color: string, tasks: Task[], onTaskClick: (task: Task) => void, onDelete: (id: string) => void, projects: Project[], isOver?: boolean, isDragging?: boolean, selectedTaskIds: string[], onToggleTaskSelect: (id: string, shiftKey: boolean, orderedIds: string[]) => void, onToggleColumnSelect: (columnTaskIds: string[]) => void }) {
+function KanbanColumn({ id, title, subtitle, color, tasks, onTaskClick, onDelete, projects, isOver, isDragging, selectedTaskIds, onToggleTaskSelect, onToggleColumnSelect, onSnoozeTask, snoozeMeta }: { id: string, title: string, subtitle?: string, color: string, tasks: Task[], onTaskClick: (task: Task) => void, onDelete: (id: string) => void, projects: Project[], isOver?: boolean, isDragging?: boolean, selectedTaskIds: string[], onToggleTaskSelect: (id: string, shiftKey: boolean, orderedIds: string[]) => void, onToggleColumnSelect: (columnTaskIds: string[]) => void, onSnoozeTask: (id: string, preset: 'laterToday' | 'tomorrow' | 'nextMonday') => void, snoozeMeta: Record<string, { count: number; lastPreset: string; updatedAt: string }> }) {
   const { setNodeRef, isOver: isDirectlyOver } = useDroppable({ id });
   const highlighted = isOver || isDirectlyOver;
   const taskIds = tasks.map((t) => t.id);
@@ -1054,6 +1284,8 @@ function KanbanColumn({ id, title, subtitle, color, tasks, onTaskClick, onDelete
               projects={projects}
               selected={selectedTaskIds.includes(task.id)}
               onToggleSelect={(id, shiftKey) => onToggleTaskSelect(id, shiftKey, taskIds)}
+              onSnooze={onSnoozeTask}
+              snoozeCount={snoozeMeta[task.id]?.count || 0}
             />
           ))}
         </SortableContext>
