@@ -230,14 +230,14 @@ airFlow/
 
 ## 📝 Roadmap
 
-- [ ] Sincronización en la nube
+<!-- - [ ] Sincronización en la nube
 - [ ] Aplicación móvil
 - [ ] Colaboración en tiempo real
 - [ ] IA para sugerencias de priorización
 - [ ] Estadísticas y analytics de productividad
 - [ ] Integración con calendarios externos
 - [ ] Temas personalizables
-- [ ] Exportación de datos
+- [ ] Exportación de datos -->
 
 ---
 
