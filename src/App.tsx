@@ -32,10 +32,10 @@ export default function App() {
   const [focusedTask, setFocusedTask] = useState<Task | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [autoStartPomodoro, setAutoStartPomodoro] = useState(true);
+  const [autoStartPomodoro, setAutoStartPomodoro] = useState(false); // Por defecto desactivado
   const [showSettings, setShowSettings] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<{ id: string; title: string } | null>(null);
-  const [isDeletingTask, setIsDeletingTask] = useState(false);
+  const [isDeletingTask, setIsDeletingTask] = useState(false); 
   const [projectsViewMode, setProjectsViewMode] = useState<'grid' | 'calendar'>('grid');
   const [weekStartsOn, setWeekStartsOn] = useState<0 | 1>(1); // 0 = Domingo, 1 = Lunes
 
