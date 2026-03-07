@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { motion } from 'motion/react';
 import { BarChart3, TrendingUp, Target, Flame, Calendar, CheckCircle2 } from 'lucide-react';
 import { Task } from '../types';
@@ -16,29 +16,72 @@ interface ChartPoint {
   date: Date;
 }
 
+type AnalyticsMode = 'completed' | 'planned' | 'created';
+
+const MODE_LABELS: Record<AnalyticsMode, string> = {
+  completed: 'Completadas',
+  planned: 'Programadas',
+  created: 'Creadas',
+};
+
 export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ tasks }) => {
-  const completedTasks = tasks.filter(t => t.status === 'done');
+  const [mode, setMode] = useState<AnalyticsMode>('planned');
 
-  const last7Days: ChartPoint[] = Array.from({ length: 7 }, (_, i) => {
-    const date = subDays(new Date(), i);
-    const dayTasks = tasks.filter(t => {
-      const sourceDate = t.due_date || t.created_at;
-      if (!sourceDate) return false;
-      return isSameDay(new Date(sourceDate), date);
-    });
+  const modeTasks = useMemo(() => {
+    if (mode === 'completed') {
+      return tasks.filter((t) => t.status === 'done');
+    }
 
-    return {
-      name: format(date, 'EEE', { locale: es }),
-      count: dayTasks.length,
-      date,
-    };
-  }).reverse();
+    if (mode === 'planned') {
+      return tasks.filter((t) => !!t.due_date || t.status === 'todo' || t.status === 'doing');
+    }
 
-  const totalCompleted = completedTasks.length;
+    return tasks;
+  }, [tasks, mode]);
+
+  const dateForMode = (task: Task, selectedMode: AnalyticsMode): Date | null => {
+    if (selectedMode === 'completed') {
+      if (task.completed_at) return new Date(task.completed_at);
+      if (task.status === 'done') return new Date(task.created_at);
+      return null;
+    }
+    if (selectedMode === 'planned') {
+      if (task.due_date) return new Date(task.due_date);
+      if (task.status === 'todo' || task.status === 'doing') return new Date(task.created_at);
+      return null;
+    }
+    return task.created_at ? new Date(task.created_at) : null;
+  };
+
+  const last7Days: ChartPoint[] = useMemo(() => {
+    return Array.from({ length: 7 }, (_, i) => {
+      const date = subDays(new Date(), i);
+      const dayTasks = modeTasks.filter((t) => {
+        const sourceDate = dateForMode(t, mode);
+        if (!sourceDate || Number.isNaN(sourceDate.getTime())) return false;
+        return isSameDay(sourceDate, date);
+      });
+
+      return {
+        name: format(date, 'EEE', { locale: es }),
+        count: dayTasks.length,
+        date,
+      };
+    }).reverse();
+  }, [modeTasks, mode]);
+
+  const totalCompleted = tasks.filter((t) => t.status === 'done').length;
   const weekPlanned = last7Days.reduce((acc, day) => acc + day.count, 0);
   const avgPerDay = (weekPlanned / 7).toFixed(1);
   const pendingTasks = tasks.filter(t => t.status !== 'done').length;
   const streak = calculateStreak(last7Days);
+  const todayCount = last7Days[last7Days.length - 1]?.count ?? 0;
+
+  const tooltipTextByMode: Record<AnalyticsMode, string> = {
+    completed: 'tareas completadas',
+    planned: 'tareas planificadas/activas',
+    created: 'tareas creadas',
+  };
 
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
@@ -48,7 +91,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ tasks }) => {
             {format(payload[0].payload.date, 'd MMM', { locale: es })}
           </p>
           <p className="text-sm font-bold text-flow-accent">
-            {payload[0].value} {payload[0].value === 1 ? 'tarea del día' : 'tareas del día'}
+            {payload[0].value} {tooltipTextByMode[mode]}
           </p>
         </div>
       );
@@ -70,6 +113,21 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ tasks }) => {
             <span>Rendimiento</span>
           </div>
           <h1 className="text-4xl font-display font-bold tracking-tight">Tu Flujo de Trabajo</h1>
+          <div className="pt-2 flex items-center gap-2">
+            {(['planned', 'completed', 'created'] as AnalyticsMode[]).map((entryMode) => (
+              <button
+                key={entryMode}
+                onClick={() => setMode(entryMode)}
+                className={`px-3 py-1.5 rounded-lg text-[11px] font-mono uppercase tracking-wider transition-all ${
+                  mode === entryMode
+                    ? 'bg-flow-accent text-white'
+                    : 'bg-white/5 text-white/45 hover:text-white/80 hover:bg-white/10'
+                }`}
+              >
+                {MODE_LABELS[entryMode]}
+              </button>
+            ))}
+          </div>
         </header>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -84,9 +142,9 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ tasks }) => {
           />
           <MetricCard
             icon={<BarChart3 className="w-4 h-4" />}
-            label="Esta semana"
+            label={`${MODE_LABELS[mode]} semana`}
             value={weekPlanned.toString()}
-            sublabel="tareas planificadas"
+            sublabel="últimos 7 días"
             color="text-flow-accent"
             bgColor="bg-flow-accent/10"
             delay={0.05}
@@ -95,7 +153,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ tasks }) => {
             icon={<TrendingUp className="w-4 h-4" />}
             label="Promedio diario"
             value={avgPerDay}
-            sublabel="tareas/día"
+            sublabel={MODE_LABELS[mode].toLowerCase() + '/día'}
             color="text-amber-400"
             bgColor="bg-amber-500/10"
             delay={0.1}
@@ -116,7 +174,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ tasks }) => {
             <h3 className="text-lg font-display font-bold text-white/80">Actividad Semanal</h3>
             <div className="flex items-center gap-2 text-[10px] text-white/20 font-mono uppercase tracking-widest">
               <Calendar className="w-3 h-3" />
-              <span>Tareas por día</span>
+              <span>{MODE_LABELS[mode]} por día</span>
             </div>
           </div>
 
@@ -151,9 +209,9 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ tasks }) => {
           <div className="glass rounded-2xl p-6 space-y-4">
             <h4 className="text-sm font-mono uppercase tracking-widest text-white/40">Insight del Día</h4>
             <p className="text-white/80 leading-relaxed">
-              {weekPlanned > 10
-                ? '¡Estás en racha! Tu productividad ha subido un 15% respecto a la semana pasada. Mantén el ritmo.'
-                : 'Parece que estás empezando. Enfócate en completar al menos 3 tareas hoy para establecer un hábito sólido.'}
+              {todayCount >= 3
+                ? `Hoy llevas ${todayCount} ${MODE_LABELS[mode].toLowerCase()}. Vas muy bien, mantén ese ritmo para cerrar fuerte el día.`
+                : `Hoy registras ${todayCount} ${MODE_LABELS[mode].toLowerCase()}. Objetivo recomendado: llegar a 3 para sostener consistencia.`}
             </p>
           </div>
           <div className="glass rounded-2xl p-6 space-y-4 border-flow-accent/20">

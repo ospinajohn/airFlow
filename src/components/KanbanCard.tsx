@@ -23,9 +23,18 @@ interface KanbanCardProps {
   onClick: (task: Task) => void;
   onDelete?: (id: string) => void;
   projects?: Project[];
+  selected?: boolean;
+  onToggleSelect?: (id: string) => void;
 }
 
-export const KanbanCard: React.FC<KanbanCardProps> = ({ task, onClick, onDelete, projects = [] }) => {
+export const KanbanCard: React.FC<KanbanCardProps> = ({
+  task,
+  onClick,
+  onDelete,
+  projects = [],
+  selected = false,
+  onToggleSelect,
+}) => {
   const {
     attributes,
     listeners,
@@ -90,7 +99,11 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({ task, onClick, onDelete,
       style={style}
       {...attributes}
       {...listeners}
-      className="group relative rounded-xl bg-flow-card/80 border border-white/[0.06] hover:border-white/[0.14] transition-all duration-200 cursor-grab active:cursor-grabbing touch-none hover:shadow-lg hover:shadow-black/30 backdrop-blur-sm"
+      className={`group relative rounded-xl bg-flow-card/80 border transition-all duration-200 cursor-grab active:cursor-grabbing touch-none hover:shadow-lg hover:shadow-black/30 backdrop-blur-sm ${
+        selected
+          ? 'border-flow-accent/70 shadow-[0_0_0_1px_rgba(59,130,246,0.4)]'
+          : 'border-white/[0.06] hover:border-white/[0.14]'
+      }`}
     >
       {/* Left accent border */}
       <div
@@ -99,6 +112,26 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({ task, onClick, onDelete,
       />
 
       <div className="p-3.5 pl-4">
+        {onToggleSelect && (
+          <button
+            onPointerDown={(e) => {
+              e.stopPropagation();
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleSelect(task.id);
+            }}
+            className={`absolute top-2 left-2 w-4 h-4 rounded border transition-all ${
+              selected
+                ? 'bg-flow-accent border-flow-accent shadow-[0_0_12px_rgba(59,130,246,0.35)]'
+                : 'bg-black/20 border-white/20 opacity-0 group-hover:opacity-100'
+            }`}
+            title={selected ? 'Deseleccionar' : 'Seleccionar'}
+          >
+            {selected && <div className="w-1.5 h-1.5 rounded-full bg-white mx-auto" />}
+          </button>
+        )}
+
         {/* Project badge + Priority glow dot */}
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-1.5">

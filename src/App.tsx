@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { LayoutGrid, List, Calendar, Settings, Zap, Plus, X, AlertTriangle, Trash2, Clock, BarChart3 } from 'lucide-react';
+import { LayoutGrid, List, Calendar, Settings, Zap, Plus, X, AlertTriangle, Trash2, Clock, BarChart3, CheckSquare, Square } from 'lucide-react';
 import {
   DndContext,
   rectIntersection,
@@ -41,6 +41,8 @@ export default function App() {
   const [weekStartsOn, setWeekStartsOn] = useState<0 | 1>(1); // 0 = Domingo, 1 = Lunes
 
   const [overColumnId, setOverColumnId] = useState<string | null>(null);
+  const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
+  const [isBulkUpdating, setIsBulkUpdating] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -57,6 +59,12 @@ export default function App() {
     fetchTasks();
     fetchProjects();
   }, []);
+
+  useEffect(() => {
+    if (view !== 'kanban' && selectedTaskIds.length > 0) {
+      setSelectedTaskIds([]);
+    }
+  }, [view, selectedTaskIds.length]);
 
   const fetchTasks = async () => {
     try {
@@ -162,6 +170,66 @@ export default function App() {
   const handleTaskDrop = async (id: string, zone: 'hoy' | 'luego') => {
     const newStatus = zone === 'hoy' ? 'todo' : 'backlog';
     handleTaskStatusChange(id, newStatus);
+  };
+
+  const toggleTaskSelection = (id: string) => {
+    setSelectedTaskIds((prev) =>
+      prev.includes(id) ? prev.filter((taskId) => taskId !== id) : [...prev, id]
+    );
+  };
+
+  const clearTaskSelection = () => setSelectedTaskIds([]);
+
+  const bulkUpdateSelected = async (updates: Partial<Task>) => {
+    if (selectedTaskIds.length === 0) return;
+
+    setIsBulkUpdating(true);
+    setTasks((prev) =>
+      prev.map((task) =>
+        selectedTaskIds.includes(task.id) ? { ...task, ...updates } : task
+      )
+    );
+
+    try {
+      await Promise.all(
+        selectedTaskIds.map((id) =>
+          fetch(`/api/tasks/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updates),
+          })
+        )
+      );
+      await fetchTasks();
+      clearTaskSelection();
+    } catch (err) {
+      console.error(err);
+      await fetchTasks();
+    } finally {
+      setIsBulkUpdating(false);
+    }
+  };
+
+  const bulkDeleteSelected = async () => {
+    if (selectedTaskIds.length === 0) return;
+    setIsBulkUpdating(true);
+
+    try {
+      await Promise.all(
+        selectedTaskIds.map((id) =>
+          fetch(`/api/tasks/${id}`, {
+            method: 'DELETE',
+          })
+        )
+      );
+      await fetchTasks();
+      clearTaskSelection();
+    } catch (err) {
+      console.error(err);
+      await fetchTasks();
+    } finally {
+      setIsBulkUpdating(false);
+    }
   };
 
   const findColumnId = (id: string): TaskStatus | undefined => {
@@ -278,6 +346,75 @@ export default function App() {
               onDragEnd={handleDragEnd}
               onDragCancel={handleDragCancel}
             >
+              <AnimatePresence>
+                {selectedTaskIds.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -12 }}
+                    className="fixed top-6 left-1/2 -translate-x-1/2 z-50 glass rounded-2xl px-4 py-3 flex items-center gap-2"
+                  >
+                    <div className="flex items-center gap-2 pr-2 mr-2 border-r border-white/10">
+                      <CheckSquare className="w-4 h-4 text-flow-accent" />
+                      <span className="text-xs font-medium text-white/70">{selectedTaskIds.length} seleccionadas</span>
+                    </div>
+
+                    <button
+                      disabled={isBulkUpdating}
+                      onClick={() => bulkUpdateSelected({ status: 'todo' })}
+                      className="px-2.5 py-1 rounded-md bg-white/5 hover:bg-white/10 text-[11px] text-white/70 disabled:opacity-40"
+                    >
+                      A Hoy
+                    </button>
+                    <button
+                      disabled={isBulkUpdating}
+                      onClick={() => bulkUpdateSelected({ status: 'doing' })}
+                      className="px-2.5 py-1 rounded-md bg-white/5 hover:bg-white/10 text-[11px] text-white/70 disabled:opacity-40"
+                    >
+                      En Proceso
+                    </button>
+                    <button
+                      disabled={isBulkUpdating}
+                      onClick={() => bulkUpdateSelected({ status: 'done', completed_at: new Date().toISOString() })}
+                      className="px-2.5 py-1 rounded-md bg-emerald-500/20 hover:bg-emerald-500/30 text-[11px] text-emerald-300 disabled:opacity-40"
+                    >
+                      Archivar
+                    </button>
+
+                    <button
+                      disabled={isBulkUpdating}
+                      onClick={() => bulkUpdateSelected({ priority: 3 })}
+                      className="px-2.5 py-1 rounded-md bg-red-500/20 hover:bg-red-500/30 text-[11px] text-red-300 disabled:opacity-40"
+                    >
+                      Prioridad Alta
+                    </button>
+                    <button
+                      disabled={isBulkUpdating}
+                      onClick={() => bulkUpdateSelected({ due_date: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() })}
+                      className="px-2.5 py-1 rounded-md bg-flow-accent/20 hover:bg-flow-accent/30 text-[11px] text-blue-300 disabled:opacity-40"
+                    >
+                      Vence Mañana
+                    </button>
+
+                    <button
+                      disabled={isBulkUpdating}
+                      onClick={bulkDeleteSelected}
+                      className="px-2.5 py-1 rounded-md bg-red-500/20 hover:bg-red-500/35 text-[11px] text-red-300 disabled:opacity-40"
+                    >
+                      Eliminar
+                    </button>
+                    <button
+                      disabled={isBulkUpdating}
+                      onClick={clearTaskSelection}
+                      className="p-1.5 rounded-md hover:bg-white/10 text-white/50 disabled:opacity-40"
+                      title="Limpiar selección"
+                    >
+                      <Square className="w-3.5 h-3.5" />
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
               <motion.div
                 key="kanban"
                 initial={{ opacity: 0, y: 20 }}
@@ -296,6 +433,8 @@ export default function App() {
                   projects={projects}
                   isOver={overColumnId === 'backlog'}
                   isDragging={!!activeId}
+                  selectedTaskIds={selectedTaskIds}
+                  onToggleTaskSelect={toggleTaskSelection}
                 />
                 <KanbanColumn 
                   id="todo"
@@ -308,6 +447,8 @@ export default function App() {
                   projects={projects}
                   isOver={overColumnId === 'todo'}
                   isDragging={!!activeId}
+                  selectedTaskIds={selectedTaskIds}
+                  onToggleTaskSelect={toggleTaskSelection}
                 />
                 <KanbanColumn 
                   id="doing"
@@ -319,6 +460,8 @@ export default function App() {
                   projects={projects}
                   isOver={overColumnId === 'doing'}
                   isDragging={!!activeId}
+                  selectedTaskIds={selectedTaskIds}
+                  onToggleTaskSelect={toggleTaskSelection}
                 />
                 <KanbanColumn 
                   id="done"
@@ -330,6 +473,8 @@ export default function App() {
                   projects={projects}
                   isOver={overColumnId === 'done'}
                   isDragging={!!activeId}
+                  selectedTaskIds={selectedTaskIds}
+                  onToggleTaskSelect={toggleTaskSelection}
                 />
               </motion.div>
 
@@ -622,7 +767,7 @@ export default function App() {
       </AnimatePresence>
 
       {/* UI Overlays */}
-      <CommandBar onTaskCreated={handleTaskCreated} />
+      <CommandBar onTaskCreated={handleTaskCreated} projects={projects} />
       <FocusMode 
         task={focusedTask} 
         projects={projects}
@@ -637,6 +782,8 @@ export default function App() {
         <span className="px-1.5 py-0.5 rounded border border-white/10">CTRL</span>
         <span>+</span>
         <span className="px-1.5 py-0.5 rounded border border-white/10">ESPACIO</span>
+        <span className="ml-2">o</span>
+        <span className="px-1.5 py-0.5 rounded border border-white/10">K</span>
         <span className="ml-2">para capturar</span>
       </div>
     </div>
@@ -666,7 +813,7 @@ function DropZone({ label, color }: { label: string, color: string }) {
   );
 }
 
-function KanbanColumn({ id, title, subtitle, color, tasks, onTaskClick, onDelete, projects, isOver, isDragging }: { id: string, title: string, subtitle?: string, color: string, tasks: Task[], onTaskClick: (task: Task) => void, onDelete: (id: string) => void, projects: Project[], isOver?: boolean, isDragging?: boolean }) {
+function KanbanColumn({ id, title, subtitle, color, tasks, onTaskClick, onDelete, projects, isOver, isDragging, selectedTaskIds, onToggleTaskSelect }: { id: string, title: string, subtitle?: string, color: string, tasks: Task[], onTaskClick: (task: Task) => void, onDelete: (id: string) => void, projects: Project[], isOver?: boolean, isDragging?: boolean, selectedTaskIds: string[], onToggleTaskSelect: (id: string) => void }) {
   const { setNodeRef, isOver: isDirectlyOver } = useDroppable({ id });
   const highlighted = isOver || isDirectlyOver;
 
@@ -719,6 +866,8 @@ function KanbanColumn({ id, title, subtitle, color, tasks, onTaskClick, onDelete
               onClick={onTaskClick} 
               onDelete={onDelete}
               projects={projects}
+              selected={selectedTaskIds.includes(task.id)}
+              onToggleSelect={onToggleTaskSelect}
             />
           ))}
         </SortableContext>
