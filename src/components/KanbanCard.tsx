@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { motion } from 'motion/react';
 import { Calendar, Clock, Trash2, Flag, Play } from 'lucide-react';
 import { Task, Project } from '../types';
 
@@ -11,10 +12,10 @@ const STATUS_COLORS: Record<string, string> = {
   done: '#10B981',
 };
 
-const PRIORITY_CONFIG: Record<number, { label: string; color: string; bg: string }> = {
-  1: { label: 'Baja', color: 'text-white/30', bg: 'bg-white/5' },
-  2: { label: 'Media', color: 'text-amber-400', bg: 'bg-amber-500/10' },
-  3: { label: 'Alta', color: 'text-red-400', bg: 'bg-red-500/10' },
+const PRIORITY_CONFIG: Record<number, { label: string; color: string; bg: string; glow: string }> = {
+  1: { label: 'Baja', color: 'text-white/30', bg: 'bg-white/5', glow: '' },
+  2: { label: 'Media', color: 'text-amber-400', bg: 'bg-amber-500/10', glow: '0 0 8px rgba(245,158,11,0.3)' },
+  3: { label: 'Alta', color: 'text-red-400', bg: 'bg-red-500/10', glow: '0 0 10px rgba(239,68,68,0.4)' },
 };
 
 interface KanbanCardProps {
@@ -89,22 +90,46 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({ task, onClick, onDelete,
       style={style}
       {...attributes}
       {...listeners}
-      className="group relative rounded-lg bg-flow-card border border-white/[0.06] hover:border-white/[0.12] transition-all duration-200 cursor-grab active:cursor-grabbing touch-none hover:shadow-lg hover:shadow-black/20"
+      className="group relative rounded-xl bg-flow-card/80 border border-white/[0.06] hover:border-white/[0.14] transition-all duration-200 cursor-grab active:cursor-grabbing touch-none hover:shadow-lg hover:shadow-black/30 backdrop-blur-sm"
     >
       {/* Left accent border */}
       <div
-        className="absolute left-0 top-3 bottom-3 w-[3px] rounded-full transition-opacity duration-200"
+        className="absolute left-0 top-3 bottom-3 w-[3px] rounded-full transition-all duration-200 group-hover:top-2 group-hover:bottom-2"
         style={{ backgroundColor: statusColor, opacity: 0.6 }}
       />
 
-      <div className="p-3 pl-4">
-        {/* Project badge */}
-        {project && (
-          <div className="flex items-center gap-1.5 mb-2">
-            <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: project.color || '#3b82f6' }} />
-            <span className="text-[10px] font-medium text-white/40 truncate">{project.name}</span>
+      <div className="p-3.5 pl-4">
+        {/* Project badge + Priority glow dot */}
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-1.5">
+            {project && (
+              <>
+                <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: project.color || '#3b82f6' }} />
+                <span className="text-[10px] font-medium text-white/35 truncate">{project.name}</span>
+              </>
+            )}
           </div>
-        )}
+          
+          {/* Priority glow dot */}
+          {task.priority === 3 && (
+            <motion.div
+              animate={{ 
+                boxShadow: ['0 0 4px rgba(239,68,68,0.4)', '0 0 12px rgba(239,68,68,0.7)', '0 0 4px rgba(239,68,68,0.4)'],
+              }}
+              transition={{ repeat: Infinity, duration: 2, ease: 'easeInOut' }}
+              className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0"
+            />
+          )}
+          {task.priority === 2 && (
+            <motion.div
+              animate={{ 
+                boxShadow: ['0 0 3px rgba(245,158,11,0.3)', '0 0 8px rgba(245,158,11,0.6)', '0 0 3px rgba(245,158,11,0.3)'],
+              }}
+              transition={{ repeat: Infinity, duration: 2.5, ease: 'easeInOut' }}
+              className="w-2 h-2 rounded-full bg-amber-500 flex-shrink-0"
+            />
+          )}
+        </div>
 
         {/* Title */}
         <div
@@ -119,8 +144,8 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({ task, onClick, onDelete,
         {/* Properties row */}
         <div className="flex items-center gap-2 mt-2.5 flex-wrap">
           {task.due_date && (
-            <div className={`flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded ${
-              isOverdue ? 'bg-red-500/15 text-red-400' : 'bg-white/5 text-white/40'
+            <div className={`flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded-md ${
+              isOverdue ? 'bg-red-500/15 text-red-400' : 'bg-white/[0.04] text-white/35'
             }`}>
               <Calendar className="w-3 h-3" />
               <span>{new Date(task.due_date).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}</span>
@@ -128,8 +153,8 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({ task, onClick, onDelete,
           )}
 
           {timeUntilDue && (
-            <div className={`flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded font-semibold ${
-              isOverdue ? 'bg-red-500/15 text-red-400' : 'bg-flow-accent/10 text-flow-accent/80'
+            <div className={`flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded-md font-semibold ${
+              isOverdue ? 'bg-red-500/15 text-red-400' : 'bg-flow-accent/10 text-flow-accent/70'
             }`}>
               <Clock className="w-3 h-3" />
               <span>{timeUntilDue}</span>
@@ -137,7 +162,7 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({ task, onClick, onDelete,
           )}
 
           {task.priority >= 2 && (
-            <div className={`flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded ${priority.bg} ${priority.color}`}>
+            <div className={`flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-md ${priority.bg} ${priority.color}`}>
               <Flag className="w-3 h-3" />
               <span className="font-medium">{priority.label}</span>
             </div>
@@ -146,21 +171,21 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({ task, onClick, onDelete,
       </div>
 
       {/* Hover actions */}
-      <div className="absolute top-2 right-2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className="absolute top-2 right-2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-all duration-200 translate-y-1 group-hover:translate-y-0">
         <button
           onClick={(e) => { e.stopPropagation(); onClick(task); }}
-          className="p-1 rounded-md hover:bg-flow-accent/20 text-white/20 hover:text-flow-accent transition-colors"
+          className="p-1.5 rounded-lg hover:bg-flow-accent/20 text-white/20 hover:text-flow-accent transition-colors"
           title="Iniciar focus"
         >
-          <Play className="w-3 h-3" />
+          <Play className="w-3.5 h-3.5" />
         </button>
         {onDelete && (
           <button
             onClick={(e) => { e.stopPropagation(); onDelete(task.id); }}
-            className="p-1 rounded-md hover:bg-red-500/20 text-white/20 hover:text-red-400 transition-colors"
+            className="p-1.5 rounded-lg hover:bg-red-500/20 text-white/20 hover:text-red-400 transition-colors"
             title="Eliminar"
           >
-            <Trash2 className="w-3 h-3" />
+            <Trash2 className="w-3.5 h-3.5" />
           </button>
         )}
       </div>

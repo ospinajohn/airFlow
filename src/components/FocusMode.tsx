@@ -114,6 +114,23 @@ export const FocusMode: React.FC<FocusModeProps> = ({ task, projects, onClose, o
           <X className="w-8 h-8 text-white/40" />
         </button>
 
+        {/* Ambient pulse background */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          <div 
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full focus-ambient-pulse"
+            style={{
+              background: 'radial-gradient(circle, rgba(59,130,246,0.15) 0%, transparent 70%)',
+            }}
+          />
+          <div 
+            className="absolute top-1/4 right-1/4 w-[400px] h-[400px] rounded-full focus-ambient-pulse"
+            style={{
+              background: 'radial-gradient(circle, rgba(139,92,246,0.08) 0%, transparent 70%)',
+              animationDelay: '2s',
+            }}
+          />
+        </div>
+
         <motion.div
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
@@ -212,9 +229,16 @@ export const FocusMode: React.FC<FocusModeProps> = ({ task, projects, onClose, o
               </div>
             ) : (
               <div className="group relative inline-block text-center space-y-4">
-                <h1 className="text-5xl md:text-7xl font-display font-semibold tracking-tight leading-tight max-w-2xl mx-auto">
+                <motion.h1
+                  animate={{ 
+                    opacity: [0.85, 1, 0.85],
+                    letterSpacing: ['0em', '0.01em', '0em'],
+                  }}
+                  transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+                  className="text-5xl md:text-7xl font-display font-semibold tracking-tight leading-tight max-w-2xl mx-auto"
+                >
                   {task.title}
-                </h1>
+                </motion.h1>
                 
                 {task.description && (
                   <p className="text-white/40 text-lg max-w-xl mx-auto font-light">

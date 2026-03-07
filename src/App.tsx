@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { LayoutGrid, List, Calendar, Settings, Zap, Plus, X, AlertTriangle, Trash2, Clock } from 'lucide-react';
+import { LayoutGrid, List, Calendar, Settings, Zap, Plus, X, AlertTriangle, Trash2, Clock, BarChart3 } from 'lucide-react';
 import {
   DndContext,
   rectIntersection,
@@ -23,12 +23,13 @@ import { TaskBubble } from './components/TaskBubble';
 import { FocusMode } from './components/FocusMode';
 import { KanbanCard } from './components/KanbanCard';
 import { CalendarView } from './components/CalendarView';
+import { AnalyticsView } from './components/AnalyticsView';
 import { Task, Project, TaskStatus } from './types';
 
 export default function App() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
-  const [view, setView] = useState<'bubbles' | 'kanban' | 'projects'>('bubbles');
+  const [view, setView] = useState<'bubbles' | 'kanban' | 'projects' | 'analytics'>('bubbles');
   const [focusedTask, setFocusedTask] = useState<Task | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -215,11 +216,19 @@ export default function App() {
 
   return (
     <div className="h-screen w-screen flex flex-col overflow-hidden bg-flow-bg">
+      {/* Ambient Background Orbs */}
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+        <div className="ambient-orb ambient-orb-1" />
+        <div className="ambient-orb ambient-orb-2" />
+        <div className="ambient-orb ambient-orb-3" />
+      </div>
+
       {/* Navigation Rail */}
       <nav className="fixed left-6 top-1/2 -translate-y-1/2 z-40 flex flex-col gap-6 p-2 glass rounded-full">
         <NavButton active={view === 'bubbles'} onClick={() => setView('bubbles')} icon={<Zap />} label="Flujo" />
         <NavButton active={view === 'kanban'} onClick={() => setView('kanban')} icon={<LayoutGrid />} label="Tablero" />
         <NavButton active={view === 'projects'} onClick={() => setView('projects')} icon={<List />} label="Proyectos" />
+        <NavButton active={view === 'analytics'} onClick={() => setView('analytics')} icon={<BarChart3 />} label="Estadísticas" />
         <div className="w-8 h-px bg-white/10 mx-auto my-2" />
         <NavButton active={showSettings} onClick={() => setShowSettings(true)} icon={<Settings />} label="Ajustes" />
       </nav>
@@ -468,6 +477,18 @@ export default function App() {
                   )}
                 </AnimatePresence>
               </div>
+            </motion.div>
+          )}
+
+          {view === 'analytics' && (
+            <motion.div
+              key="analytics"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="h-full p-12 pl-24 overflow-y-auto"
+            >
+              <AnalyticsView tasks={tasks} />
             </motion.div>
           )}
         </AnimatePresence>

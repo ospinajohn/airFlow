@@ -43,6 +43,43 @@ async function startServer() {
     res.json(tasks);
   });
 
+  app.get("/api/tasks/stats", (req, res) => {
+    try {
+      const days = 7;
+      const stats = [];
+      for (let i = days - 1; i >= 0; i--) {
+        const startOffset = -i;
+        const endOffset = -(i - 1);
+        const row = db.prepare(
+          `SELECT COUNT(*) as count FROM tasks WHERE completed_at IS NOT NULL AND completed_at >= datetime('now', ? || ' days', 'start of day') AND completed_at < datetime('now', ? || ' days', 'start of day')`
+        ).get(startOffset.toString(), endOffset.toString()) as { count: number };
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        stats.push({ date: date.toISOString().split('T')[0], completed: row.count });
+      }
+
+      const totalCompleted = db.prepare(
+        "SELECT COUNT(*) as count FROM tasks WHERE completed_at IS NOT NULL"
+      ).get() as { count: number };
+
+      const totalTasks = db.prepare("SELECT COUNT(*) as count FROM tasks").get() as { count: number };
+
+      const weekCompleted = db.prepare(
+        "SELECT COUNT(*) as count FROM tasks WHERE completed_at IS NOT NULL AND completed_at >= datetime('now', '-7 days')"
+      ).get() as { count: number };
+
+      res.json({
+        daily: stats,
+        totalCompleted: totalCompleted.count,
+        totalTasks: totalTasks.count,
+        weekCompleted: weekCompleted.count,
+      });
+    } catch (err) {
+      console.error('Stats error:', err);
+      res.status(500).json({ error: 'Failed to fetch stats' });
+    }
+  });
+
   app.post("/api/tasks", (req, res) => {
     const { id, title, description, status, priority, due_date, project_id } = req.body;
     const stmt = db.prepare("INSERT INTO tasks (id, title, description, status, priority, due_date, project_id) VALUES (?, ?, ?, ?, ?, ?, ?)");
