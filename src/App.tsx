@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { LayoutGrid, List, Calendar, Settings, Zap, Plus, X, AlertTriangle, Trash2, Clock, BarChart3, CheckSquare, Square, Keyboard } from 'lucide-react';
+import { LayoutGrid, List, Calendar, Settings, Zap, Plus, X, AlertTriangle, Trash2, Clock, BarChart3, CheckSquare, Square, Keyboard, Target, Edit2, FolderOpen, CheckCircle2, CircleDot, TrendingUp } from 'lucide-react';
 import {
   DndContext,
   rectIntersection,
