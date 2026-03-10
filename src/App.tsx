@@ -881,12 +881,20 @@ export default function App() {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
-              className="h-full p-12 pl-24 overflow-y-auto"
+              className="h-full p-12 pl-24 overflow-y-auto no-scrollbar"
             >
               <div className="max-w-6xl mx-auto h-full flex flex-col">
-                <div className="flex items-center justify-between mb-12">
-                  <h2 className="text-3xl font-display font-bold">Mis Proyectos</h2>
-                  
+                {/* Header */}
+                <div className="flex items-start justify-between mb-10">
+                  <div>
+                    <h2 className="text-3xl font-display font-bold">Mis Proyectos</h2>
+                    <p className="text-sm text-white/40 mt-1">
+                      {projects.length > 0
+                        ? `${projects.length} proyecto${projects.length !== 1 ? 's' : ''} · ${tasks.filter(t => t.status !== 'done').length} tareas activas`
+                        : 'Organiza tus tareas en proyectos'}
+                    </p>
+                  </div>
+
                   <div className="flex items-center gap-3">
                     {/* View Switcher */}
                     <div className="glass rounded-lg p-1 flex items-center gap-1">
@@ -912,8 +920,8 @@ export default function App() {
                       </button>
                     </div>
 
-                    <button 
-                      className="flex items-center gap-2 px-4 py-2 rounded-xl bg-flow-accent text-white font-medium text-sm hover:shadow-lg transition-all active:scale-95"
+                    <button
+                      className="flex items-center gap-2 px-4 py-2 rounded-xl bg-flow-accent text-white font-medium text-sm hover:brightness-110 hover:shadow-lg hover:shadow-blue-500/20 transition-all active:scale-95"
                       onClick={openCreateProjectModal}
                     >
                       <Plus className="w-4 h-4" />
@@ -922,43 +930,81 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="mb-8 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                  {projectWorkload.map((item) => (
-                    <div key={item.id} className="glass rounded-xl p-4 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
-                          <h4 className="text-sm font-semibold text-white/85 truncate">{item.name}</h4>
-                        </div>
-                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
-                          item.loadLevel === 'high'
-                            ? 'bg-red-500/20 text-red-300'
-                            : item.loadLevel === 'medium'
-                              ? 'bg-amber-500/20 text-amber-300'
-                              : 'bg-emerald-500/20 text-emerald-300'
-                        }`}>
-                          {item.loadLevel === 'high' ? 'Alta carga' : item.loadLevel === 'medium' ? 'Carga media' : 'Carga sana'}
-                        </span>
-                      </div>
+                {/* Workload Summary Cards */}
+                {projectWorkload.length > 0 && (
+                  <div className="mb-8 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                    {projectWorkload.map((item) => {
+                      const scopedAll = tasks.filter(t => item.id === 'none' ? !t.project_id : t.project_id === item.id);
+                      const done = scopedAll.filter(t => t.status === 'done').length;
+                      const total = scopedAll.length;
+                      const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+                      return (
+                        <div key={item.id} className="glass rounded-xl p-4 space-y-3 relative overflow-hidden">
+                          {/* color accent top border */}
+                          <div className="absolute top-0 left-0 right-0 h-0.5 rounded-t-xl" style={{ background: `linear-gradient(90deg, ${item.color}cc, transparent)` }} />
 
-                      <div className="grid grid-cols-3 gap-2">
-                        <div className="rounded-lg bg-white/5 p-2">
-                          <p className="text-[10px] text-white/35 uppercase tracking-wider">Activas</p>
-                          <p className="text-lg font-display font-bold text-white/85">{item.active}</p>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
+                              <h4 className="text-sm font-semibold text-white/85 truncate">{item.name}</h4>
+                            </div>
+                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                              item.loadLevel === 'high'
+                                ? 'bg-red-500/20 text-red-300'
+                                : item.loadLevel === 'medium'
+                                  ? 'bg-amber-500/20 text-amber-300'
+                                  : 'bg-emerald-500/20 text-emerald-300'
+                            }`}>
+                              {item.loadLevel === 'high' ? 'Alta carga' : item.loadLevel === 'medium' ? 'Carga media' : 'Carga sana'}
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-3 gap-2">
+                            <div className="rounded-lg bg-white/5 p-2 flex flex-col gap-1">
+                              <div className="flex items-center gap-1">
+                                <CircleDot className="w-3 h-3 text-white/30" />
+                                <p className="text-[9px] text-white/35 uppercase tracking-wider">Activas</p>
+                              </div>
+                              <p className="text-lg font-display font-bold text-white/85">{item.active}</p>
+                            </div>
+                            <div className="rounded-lg bg-white/5 p-2 flex flex-col gap-1">
+                              <div className="flex items-center gap-1">
+                                <Clock className="w-3 h-3 text-blue-400/60" />
+                                <p className="text-[9px] text-white/35 uppercase tracking-wider">Semana</p>
+                              </div>
+                              <p className="text-lg font-display font-bold text-blue-300">{item.dueThisWeek}</p>
+                            </div>
+                            <div className="rounded-lg bg-white/5 p-2 flex flex-col gap-1">
+                              <div className="flex items-center gap-1">
+                                <AlertTriangle className="w-3 h-3 text-rose-400/60" />
+                                <p className="text-[9px] text-white/35 uppercase tracking-wider">Vencidas</p>
+                              </div>
+                              <p className="text-lg font-display font-bold text-rose-300">{item.overdue}</p>
+                            </div>
+                          </div>
+
+                          {/* Progress bar */}
+                          <div className="space-y-1">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] text-white/30">Progreso</span>
+                              <span className="text-[10px] font-medium text-white/50">{pct}%</span>
+                            </div>
+                            <div className="h-1 rounded-full bg-white/8 overflow-hidden">
+                              <motion.div
+                                initial={{ width: 0 }}
+                                animate={{ width: `${pct}%` }}
+                                transition={{ duration: 0.8, ease: 'easeOut' }}
+                                className="h-full rounded-full"
+                                style={{ backgroundColor: item.color }}
+                              />
+                            </div>
+                          </div>
                         </div>
-                        <div className="rounded-lg bg-white/5 p-2">
-                          <p className="text-[10px] text-white/35 uppercase tracking-wider">Semana</p>
-                          <p className="text-lg font-display font-bold text-blue-300">{item.dueThisWeek}</p>
-                        </div>
-                        <div className="rounded-lg bg-white/5 p-2">
-                          <p className="text-[10px] text-white/35 uppercase tracking-wider">Vencidas</p>
-                          <p className="text-lg font-display font-bold text-rose-300">{item.overdue}</p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                
+                      );
+                    })}
+                  </div>
+                )}
+
                 <AnimatePresence mode="wait">
                   {projectsViewMode === 'grid' ? (
                     <motion.div
@@ -966,82 +1012,181 @@ export default function App() {
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -20 }}
-                      className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-32"
+                      className="grid grid-cols-1 md:grid-cols-2 gap-5 pb-32"
                     >
-                      {projects.length > 0 ? projects.map(project => (
-                        <div key={project.id} className="glass rounded-2xl p-6 space-y-4">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2 min-w-0">
-                              <h3 className="text-sm font-mono uppercase tracking-widest text-white/40 truncate">{project.name}</h3>
-                              <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: project.color || '#3b82f6' }} />
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <button
-                                onClick={() => openEditProjectModal(project)}
-                                className="px-2 py-1 text-[10px] rounded-md bg-white/5 hover:bg-white/10 text-white/55 hover:text-white/80"
-                              >
-                                Editar
-                              </button>
-                              <button
-                                onClick={() => handleDeleteProject(project)}
-                                className="px-2 py-1 text-[10px] rounded-md bg-red-500/10 hover:bg-red-500/20 text-red-300"
-                              >
-                                Eliminar
-                              </button>
-                            </div>
-                          </div>
-                          <div className="space-y-2">
-                            {tasks.filter(t => t.project_id === project.id).map(task => (
-                              <div 
-                                key={task.id}
-                                onClick={() => setFocusedTask(task)}
-                                className="flex items-center justify-between p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-all cursor-pointer group"
-                              >
-                                <span className="text-sm font-medium group-hover:text-flow-accent">{task.title}</span>
-                                <span className={`text-[9px] px-2 py-0.5 rounded-full ${
-                                  task.status === 'done' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-white/10 text-white/40'
-                                }`}>
-                                  {task.status}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )) : (
-                        <div className="glass rounded-2xl p-6 space-y-4 col-span-full">
-                          <div className="flex items-center justify-between gap-4 mb-2">
-                            <div>
-                              <h3 className="text-base font-semibold text-white/85">Aun no tienes proyectos</h3>
-                              <p className="text-xs text-white/40">Crea uno para organizar mejor tus tareas.</p>
-                            </div>
-                            <button
-                              onClick={openCreateProjectModal}
-                              className="px-3 py-2 rounded-lg bg-flow-accent text-white text-xs font-semibold hover:shadow-lg transition-all"
-                            >
-                              Crear proyecto
-                            </button>
-                          </div>
-                          <h3 className="text-sm font-mono uppercase tracking-widest text-white/40">Todas las Tareas</h3>
-                          <div className="space-y-2">
-                            {tasks.map(task => (
-                              <div 
-                                key={task.id}
-                                onClick={() => setFocusedTask(task)}
-                                className="flex items-center justify-between p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-all cursor-pointer group"
-                              >
-                                <span className="text-sm font-medium group-hover:text-flow-accent">{task.title}</span>
-                                <div className="flex items-center gap-3">
-                                  {task.priority === 3 && <div className="w-1.5 h-1.5 rounded-full bg-red-500" />}
-                                  <span className={`text-[9px] px-2 py-0.5 rounded-full ${
-                                    task.status === 'done' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-white/10 text-white/40'
-                                  }`}>
-                                    {task.status}
-                                  </span>
+                      {projects.length > 0 ? projects.map(project => {
+                        const projectTasks = tasks.filter(t => t.project_id === project.id);
+                        const doneTasks = projectTasks.filter(t => t.status === 'done').length;
+                        const totalTasks = projectTasks.length;
+                        const pct = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
+                        const color = project.color || '#3b82f6';
+                        return (
+                          <div key={project.id} className="glass rounded-2xl overflow-hidden flex flex-col">
+                            {/* Project color top accent */}
+                            <div className="h-1 w-full flex-shrink-0" style={{ background: `linear-gradient(90deg, ${color}, ${color}44)` }} />
+
+                            <div className="p-5 flex flex-col gap-4 flex-1">
+                              {/* Project header */}
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="flex items-center gap-3 min-w-0">
+                                  <div
+                                    className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                                    style={{ backgroundColor: `${color}22`, border: `1px solid ${color}44` }}
+                                  >
+                                    <FolderOpen className="w-4 h-4" style={{ color }} />
+                                  </div>
+                                  <div className="min-w-0">
+                                    <h3 className="text-base font-semibold text-white/90 truncate leading-tight">{project.name}</h3>
+                                    <p className="text-[11px] text-white/35 mt-0.5">
+                                      {totalTasks === 0
+                                        ? 'Sin tareas'
+                                        : `${doneTasks} de ${totalTasks} completada${totalTasks !== 1 ? 's' : ''}`}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-1 flex-shrink-0">
+                                  <button
+                                    onClick={() => openEditProjectModal(project)}
+                                    title="Editar proyecto"
+                                    className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white/40 hover:text-white/80 transition-all"
+                                  >
+                                    <Edit2 className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteProject(project)}
+                                    title="Eliminar proyecto"
+                                    className="p-1.5 rounded-lg bg-red-500/8 hover:bg-red-500/20 text-red-400/60 hover:text-red-300 transition-all"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
                                 </div>
                               </div>
-                            ))}
+
+                              {/* Progress bar */}
+                              {totalTasks > 0 && (
+                                <div className="space-y-1.5">
+                                  <div className="h-1.5 rounded-full bg-white/6 overflow-hidden">
+                                    <motion.div
+                                      initial={{ width: 0 }}
+                                      animate={{ width: `${pct}%` }}
+                                      transition={{ duration: 0.9, ease: 'easeOut', delay: 0.1 }}
+                                      className="h-full rounded-full"
+                                      style={{ backgroundColor: color }}
+                                    />
+                                  </div>
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-1 text-[10px] text-white/30">
+                                      <TrendingUp className="w-2.5 h-2.5" />
+                                      <span>Progreso</span>
+                                    </div>
+                                    <span className="text-[10px] font-medium" style={{ color: pct === 100 ? '#10b981' : `${color}cc` }}>{pct}%</span>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Task list */}
+                              {projectTasks.length > 0 && (
+                                <div className="space-y-1.5">
+                                  <p className="text-[10px] font-mono uppercase tracking-widest text-white/25 mb-2">Tareas</p>
+                                  {projectTasks.slice(0, 5).map(task => (
+                                    <div
+                                      key={task.id}
+                                      onClick={() => setFocusedTask(task)}
+                                      className="flex items-center gap-2.5 p-2.5 rounded-lg bg-white/4 hover:bg-white/8 transition-all cursor-pointer group"
+                                    >
+                                      {task.status === 'done'
+                                        ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
+                                        : <div className="w-3.5 h-3.5 rounded-full border border-white/20 flex-shrink-0" />
+                                      }
+                                      <span className={`text-sm flex-1 min-w-0 truncate transition-colors ${task.status === 'done' ? 'text-white/35 line-through' : 'text-white/75 group-hover:text-white'}`}>
+                                        {task.title}
+                                      </span>
+                                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                                        {task.priority === 3 && <div className="w-1.5 h-1.5 rounded-full bg-red-400" />}
+                                        {task.priority === 2 && <div className="w-1.5 h-1.5 rounded-full bg-amber-400" />}
+                                        <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${
+                                          task.status === 'done' ? 'bg-emerald-500/15 text-emerald-400'
+                                          : task.status === 'doing' ? 'bg-blue-500/15 text-blue-300'
+                                          : task.status === 'todo' ? 'bg-white/8 text-white/35'
+                                          : 'bg-white/5 text-white/25'
+                                        }`}>
+                                          {task.status === 'done' ? 'Listo' : task.status === 'doing' ? 'En curso' : task.status === 'todo' ? 'Por hacer' : 'Backlog'}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  ))}
+                                  {projectTasks.length > 5 && (
+                                    <p className="text-[11px] text-white/30 text-center pt-1">+{projectTasks.length - 5} más</p>
+                                  )}
+                                </div>
+                              )}
+
+                              {projectTasks.length === 0 && (
+                                <div className="flex flex-col items-center justify-center py-6 rounded-xl bg-white/3 border border-dashed border-white/8">
+                                  <Target className="w-6 h-6 text-white/15 mb-2" />
+                                  <p className="text-xs text-white/25">Sin tareas asignadas</p>
+                                </div>
+                              )}
+                            </div>
                           </div>
-                        </div>
+                        );
+                      }) : (
+                        <motion.div
+                          initial={{ opacity: 0, scale: 0.97 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          className="glass rounded-2xl p-10 col-span-full flex flex-col items-center justify-center text-center gap-4"
+                        >
+                          <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/8 flex items-center justify-center mb-2">
+                            <FolderOpen className="w-7 h-7 text-white/20" />
+                          </div>
+                          <div>
+                            <h3 className="text-lg font-semibold text-white/70">Sin proyectos todavía</h3>
+                            <p className="text-sm text-white/35 mt-1 max-w-xs">Crea tu primer proyecto para organizar y agrupar tus tareas.</p>
+                          </div>
+                          <button
+                            onClick={openCreateProjectModal}
+                            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-flow-accent text-white text-sm font-semibold hover:brightness-110 hover:shadow-lg hover:shadow-blue-500/20 transition-all active:scale-95 mt-2"
+                          >
+                            <Plus className="w-4 h-4" />
+                            Crear primer proyecto
+                          </button>
+
+                          {tasks.length > 0 && (
+                            <div className="w-full mt-4 pt-6 border-t border-white/6">
+                              <p className="text-[11px] font-mono uppercase tracking-widest text-white/25 mb-3">Tareas sin proyecto</p>
+                              <div className="space-y-1.5 text-left">
+                                {tasks.slice(0, 6).map(task => (
+                                  <div
+                                    key={task.id}
+                                    onClick={() => setFocusedTask(task)}
+                                    className="flex items-center gap-2.5 p-2.5 rounded-lg bg-white/4 hover:bg-white/8 transition-all cursor-pointer group"
+                                  >
+                                    {task.status === 'done'
+                                      ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
+                                      : <div className="w-3.5 h-3.5 rounded-full border border-white/20 flex-shrink-0" />
+                                    }
+                                    <span className={`text-sm flex-1 min-w-0 truncate transition-colors ${task.status === 'done' ? 'text-white/35 line-through' : 'text-white/75 group-hover:text-white'}`}>
+                                      {task.title}
+                                    </span>
+                                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                                      {task.priority === 3 && <div className="w-1.5 h-1.5 rounded-full bg-red-400" />}
+                                      <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${
+                                        task.status === 'done' ? 'bg-emerald-500/15 text-emerald-400'
+                                        : task.status === 'doing' ? 'bg-blue-500/15 text-blue-300'
+                                        : 'bg-white/8 text-white/35'
+                                      }`}>
+                                        {task.status === 'done' ? 'Listo' : task.status === 'doing' ? 'En curso' : task.status === 'todo' ? 'Por hacer' : 'Backlog'}
+                                      </span>
+                                    </div>
+                                  </div>
+                                ))}
+                                {tasks.length > 6 && (
+                                  <p className="text-[11px] text-white/25 text-center pt-1">+{tasks.length - 6} más</p>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </motion.div>
                       )}
                     </motion.div>
                   ) : (
@@ -1052,7 +1197,7 @@ export default function App() {
                       exit={{ opacity: 0, y: -20 }}
                       className="flex-1 pb-12"
                     >
-                      <CalendarView 
+                      <CalendarView
                         tasks={tasks}
                         projects={projects}
                         onTaskClick={setFocusedTask}
