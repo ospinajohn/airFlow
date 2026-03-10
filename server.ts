@@ -3,6 +3,7 @@ import { createServer as createViteServer } from "vite";
 import Database from "better-sqlite3";
 import path from "path";
 import { fileURLToPath } from "url";
+import { randomUUID } from "crypto";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -116,8 +117,95 @@ async function startServer() {
   });
 
   app.get("/api/projects", (req, res) => {
-    const projects = db.prepare("SELECT * FROM projects").all();
+    const projects = db.prepare("SELECT * FROM projects ORDER BY name COLLATE NOCASE ASC").all();
     res.json(projects);
+  });
+
+  app.post("/api/projects", (req, res) => {
+    try {
+      const { id, name, color } = req.body;
+      const normalizedName = typeof name === "string" ? name.trim() : "";
+
+      if (!normalizedName) {
+        return res.status(400).json({ error: "El nombre del proyecto es obligatorio" });
+      }
+
+      const existing = db
+        .prepare("SELECT id FROM projects WHERE lower(name) = lower(?) LIMIT 1")
+        .get(normalizedName) as { id: string } | undefined;
+
+      if (existing) {
+        return res.status(409).json({ error: "Ya existe un proyecto con ese nombre" });
+      }
+
+      const projectId = typeof id === "string" && id.trim().length > 0 ? id.trim() : randomUUID();
+      db.prepare("INSERT INTO projects (id, name, color) VALUES (?, ?, ?)").run(projectId, normalizedName, color || null);
+
+      const created = db.prepare("SELECT * FROM projects WHERE id = ?").get(projectId);
+      return res.status(201).json(created);
+    } catch (err) {
+      console.error("Create project error:", err);
+      return res.status(500).json({ error: "No se pudo crear el proyecto" });
+    }
+  });
+
+  app.patch("/api/projects/:id", (req, res) => {
+    try {
+      const { id } = req.params;
+      const { name, color } = req.body;
+
+      const current = db.prepare("SELECT * FROM projects WHERE id = ?").get(id) as
+        | { id: string; name: string; color: string | null }
+        | undefined;
+
+      if (!current) {
+        return res.status(404).json({ error: "Proyecto no encontrado" });
+      }
+
+      const nextName = typeof name === "string" ? name.trim() : current.name;
+      if (!nextName) {
+        return res.status(400).json({ error: "El nombre del proyecto es obligatorio" });
+      }
+
+      const duplicate = db
+        .prepare("SELECT id FROM projects WHERE lower(name) = lower(?) AND id != ? LIMIT 1")
+        .get(nextName, id) as { id: string } | undefined;
+
+      if (duplicate) {
+        return res.status(409).json({ error: "Ya existe un proyecto con ese nombre" });
+      }
+
+      const nextColor = typeof color === "string" ? color : current.color;
+      db.prepare("UPDATE projects SET name = ?, color = ? WHERE id = ?").run(nextName, nextColor || null, id);
+
+      const updated = db.prepare("SELECT * FROM projects WHERE id = ?").get(id);
+      return res.json(updated);
+    } catch (err) {
+      console.error("Update project error:", err);
+      return res.status(500).json({ error: "No se pudo actualizar el proyecto" });
+    }
+  });
+
+  app.delete("/api/projects/:id", (req, res) => {
+    try {
+      const { id } = req.params;
+
+      const project = db.prepare("SELECT id FROM projects WHERE id = ?").get(id) as { id: string } | undefined;
+      if (!project) {
+        return res.status(404).json({ error: "Proyecto no encontrado" });
+      }
+
+      const tx = db.transaction((projectId: string) => {
+        db.prepare("UPDATE tasks SET project_id = NULL WHERE project_id = ?").run(projectId);
+        db.prepare("DELETE FROM projects WHERE id = ?").run(projectId);
+      });
+
+      tx(id);
+      return res.json({ success: true });
+    } catch (err) {
+      console.error("Delete project error:", err);
+      return res.status(500).json({ error: "No se pudo eliminar el proyecto" });
+    }
   });
 
   // Vite middleware for development

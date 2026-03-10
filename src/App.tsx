@@ -27,6 +27,9 @@ import { AnalyticsView } from './components/AnalyticsView';
 import { Task, Project, TaskStatus } from './types';
 
 export default function App() {
+  const PROJECT_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#6b7280'];
+  const DEFAULT_PROJECT_COLOR = '#3b82f6';
+
   const [tasks, setTasks] = useState<Task[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [view, setView] = useState<'bubbles' | 'kanban' | 'projects' | 'analytics'>('bubbles');
@@ -37,6 +40,16 @@ export default function App() {
   const [showKanbanHealthCheck, setShowKanbanHealthCheck] = useState(false); // Por defecto desactivado
   const [showSettings, setShowSettings] = useState(false);
   const [showShortcutsCenter, setShowShortcutsCenter] = useState(false);
+  const [showProjectModal, setShowProjectModal] = useState(false);
+  const [projectModalMode, setProjectModalMode] = useState<'create' | 'edit'>('create');
+  const [projectDraft, setProjectDraft] = useState<{ id?: string; name: string; color: string }>({
+    name: '',
+    color: DEFAULT_PROJECT_COLOR,
+  });
+  const [projectFormError, setProjectFormError] = useState<string | null>(null);
+  const [isSavingProject, setIsSavingProject] = useState(false);
+  const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
+  const [isDeletingProject, setIsDeletingProject] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<{ id: string; title: string } | null>(null);
   const [isDeletingTask, setIsDeletingTask] = useState(false); 
   const [projectsViewMode, setProjectsViewMode] = useState<'grid' | 'calendar'>('grid');
@@ -102,6 +115,87 @@ export default function App() {
       setProjects(data);
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const openCreateProjectModal = () => {
+    setProjectModalMode('create');
+    setProjectDraft({ name: '', color: DEFAULT_PROJECT_COLOR });
+    setProjectFormError(null);
+    setShowProjectModal(true);
+  };
+
+  const openEditProjectModal = (project: Project) => {
+    setProjectModalMode('edit');
+    setProjectDraft({ id: project.id, name: project.name, color: project.color || DEFAULT_PROJECT_COLOR });
+    setProjectFormError(null);
+    setShowProjectModal(true);
+  };
+
+  const handleSaveProject = async () => {
+    const trimmedName = projectDraft.name.trim();
+    if (!trimmedName) {
+      setProjectFormError('El nombre del proyecto es obligatorio.');
+      return;
+    }
+
+    setIsSavingProject(true);
+    setProjectFormError(null);
+
+    try {
+      const endpoint = projectModalMode === 'create' ? '/api/projects' : `/api/projects/${projectDraft.id}`;
+      const method = projectModalMode === 'create' ? 'POST' : 'PATCH';
+
+      const res = await fetch(endpoint, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: trimmedName,
+          color: projectDraft.color,
+        }),
+      });
+
+      const contentType = res.headers.get("content-type");
+      let data: any = {};
+      if (contentType && contentType.includes("application/json")) {
+        data = await res.json();
+      }
+
+      if (!res.ok) {
+        setProjectFormError(data?.error || 'No se pudo guardar el proyecto.');
+        return;
+      }
+
+      await fetchProjects();
+      setShowProjectModal(false);
+    } catch (err) {
+      console.error(err);
+      setProjectFormError('Error inesperado al guardar el proyecto.');
+    } finally {
+      setIsSavingProject(false);
+    }
+  };
+
+  const handleDeleteProject = (project: Project) => {
+    setProjectToDelete(project);
+  };
+
+  const confirmProjectDelete = async () => {
+    if (!projectToDelete) return;
+    setIsDeletingProject(true);
+
+    try {
+      const res = await fetch(`/api/projects/${projectToDelete.id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        throw new Error('No se pudo eliminar el proyecto');
+      }
+
+      await Promise.all([fetchProjects(), fetchTasks()]);
+      setProjectToDelete(null);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsDeletingProject(false);
     }
   };
 
@@ -820,9 +914,7 @@ export default function App() {
 
                     <button 
                       className="flex items-center gap-2 px-4 py-2 rounded-xl bg-flow-accent text-white font-medium text-sm hover:shadow-lg transition-all active:scale-95"
-                      onClick={() => {
-                        // Logic for new project could go here
-                      }}
+                      onClick={openCreateProjectModal}
                     >
                       <Plus className="w-4 h-4" />
                       Nuevo Proyecto
@@ -879,8 +971,24 @@ export default function App() {
                       {projects.length > 0 ? projects.map(project => (
                         <div key={project.id} className="glass rounded-2xl p-6 space-y-4">
                           <div className="flex items-center justify-between">
-                            <h3 className="text-sm font-mono uppercase tracking-widest text-white/40">{project.name}</h3>
-                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: project.color || '#3b82f6' }} />
+                            <div className="flex items-center gap-2 min-w-0">
+                              <h3 className="text-sm font-mono uppercase tracking-widest text-white/40 truncate">{project.name}</h3>
+                              <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: project.color || '#3b82f6' }} />
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={() => openEditProjectModal(project)}
+                                className="px-2 py-1 text-[10px] rounded-md bg-white/5 hover:bg-white/10 text-white/55 hover:text-white/80"
+                              >
+                                Editar
+                              </button>
+                              <button
+                                onClick={() => handleDeleteProject(project)}
+                                className="px-2 py-1 text-[10px] rounded-md bg-red-500/10 hover:bg-red-500/20 text-red-300"
+                              >
+                                Eliminar
+                              </button>
+                            </div>
                           </div>
                           <div className="space-y-2">
                             {tasks.filter(t => t.project_id === project.id).map(task => (
@@ -901,6 +1009,18 @@ export default function App() {
                         </div>
                       )) : (
                         <div className="glass rounded-2xl p-6 space-y-4 col-span-full">
+                          <div className="flex items-center justify-between gap-4 mb-2">
+                            <div>
+                              <h3 className="text-base font-semibold text-white/85">Aun no tienes proyectos</h3>
+                              <p className="text-xs text-white/40">Crea uno para organizar mejor tus tareas.</p>
+                            </div>
+                            <button
+                              onClick={openCreateProjectModal}
+                              className="px-3 py-2 rounded-lg bg-flow-accent text-white text-xs font-semibold hover:shadow-lg transition-all"
+                            >
+                              Crear proyecto
+                            </button>
+                          </div>
                           <h3 className="text-sm font-mono uppercase tracking-widest text-white/40">Todas las Tareas</h3>
                           <div className="space-y-2">
                             {tasks.map(task => (
@@ -1063,6 +1183,149 @@ export default function App() {
               </div>
 
               <p className="text-[10px] text-white/20 text-center uppercase tracking-widest">The Flow OS v1.0</p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Project Modal */}
+      <AnimatePresence>
+        {showProjectModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[65] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={() => !isSavingProject && setShowProjectModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="w-full max-w-md glass rounded-2xl p-6 space-y-5"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-display font-semibold">
+                  {projectModalMode === 'create' ? 'Nuevo Proyecto' : 'Editar Proyecto'}
+                </h2>
+                <button
+                  onClick={() => setShowProjectModal(false)}
+                  disabled={isSavingProject}
+                  className="p-2 hover:bg-white/5 rounded-full disabled:opacity-40"
+                >
+                  <X className="w-4 h-4 text-white/40" />
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                <label className="block text-xs text-white/45 uppercase tracking-widest">Nombre</label>
+                <input
+                  value={projectDraft.name}
+                  onChange={(e) => setProjectDraft((prev) => ({ ...prev, name: e.target.value }))}
+                  placeholder="Ej. Marketing Q2"
+                  className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 focus:outline-none focus:border-flow-accent text-sm"
+                  maxLength={60}
+                  disabled={isSavingProject}
+                />
+              </div>
+
+              <div className="space-y-3">
+                <label className="block text-xs text-white/45 uppercase tracking-widest">Color</label>
+                <div className="flex flex-wrap gap-2">
+                  {PROJECT_COLORS.map((color) => (
+                    <button
+                      key={color}
+                      onClick={() => setProjectDraft((prev) => ({ ...prev, color }))}
+                      disabled={isSavingProject}
+                      className={`w-7 h-7 rounded-full border-2 transition-all ${
+                        projectDraft.color === color ? 'border-white scale-110' : 'border-white/20 hover:border-white/60'
+                      }`}
+                      style={{ backgroundColor: color }}
+                      title={color}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-xl bg-white/5 p-3">
+                <p className="text-[10px] text-white/35 uppercase tracking-widest mb-2">Vista previa</p>
+                <div className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: projectDraft.color }} />
+                  <p className="text-sm text-white/85">{projectDraft.name.trim() || 'Nombre del proyecto'}</p>
+                </div>
+              </div>
+
+              {projectFormError && (
+                <p className="text-xs text-red-300 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+                  {projectFormError}
+                </p>
+              )}
+
+              <div className="flex items-center justify-end gap-2">
+                <button
+                  onClick={() => setShowProjectModal(false)}
+                  disabled={isSavingProject}
+                  className="px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-sm text-white/70 disabled:opacity-40"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleSaveProject}
+                  disabled={isSavingProject}
+                  className="px-3 py-2 rounded-lg bg-flow-accent hover:brightness-110 text-sm font-semibold text-white disabled:opacity-40"
+                >
+                  {isSavingProject ? 'Guardando...' : projectModalMode === 'create' ? 'Crear proyecto' : 'Guardar cambios'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Delete Project Modal */}
+      <AnimatePresence>
+        {projectToDelete && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[66] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={() => !isDeletingProject && setProjectToDelete(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="w-full max-w-md glass rounded-2xl p-6 space-y-5"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="space-y-2">
+                <h2 className="text-lg font-display font-semibold">Eliminar proyecto</h2>
+                <p className="text-sm text-white/50">
+                  Se eliminará el proyecto y sus tareas quedarán sin proyecto asignado.
+                </p>
+                <p className="text-sm text-white/85">
+                  <span className="text-white/45">Proyecto:</span> {projectToDelete.name}
+                </p>
+              </div>
+
+              <div className="flex items-center justify-end gap-2">
+                <button
+                  onClick={() => setProjectToDelete(null)}
+                  disabled={isDeletingProject}
+                  className="px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-sm text-white/70 disabled:opacity-40"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={confirmProjectDelete}
+                  disabled={isDeletingProject}
+                  className="px-3 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-sm font-semibold text-white disabled:opacity-40"
+                >
+                  {isDeletingProject ? 'Eliminando...' : 'Eliminar proyecto'}
+                </button>
+              </div>
             </motion.div>
           </motion.div>
         )}
