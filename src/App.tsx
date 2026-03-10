@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { LayoutGrid, List, Calendar, Settings, Zap, Plus, X, AlertTriangle, Trash2 } from 'lucide-react';
+import { LayoutGrid, List, Calendar, Settings, Zap, Plus, X, AlertTriangle, Trash2, Clock, BarChart3, CheckSquare, Square, Keyboard } from 'lucide-react';
 import {
   DndContext,
   rectIntersection,
@@ -23,23 +23,38 @@ import { TaskBubble } from './components/TaskBubble';
 import { FocusMode } from './components/FocusMode';
 import { KanbanCard } from './components/KanbanCard';
 import { CalendarView } from './components/CalendarView';
+import { AnalyticsView } from './components/AnalyticsView';
 import { Task, Project, TaskStatus } from './types';
 
 export default function App() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
-  const [view, setView] = useState<'bubbles' | 'kanban' | 'projects'>('bubbles');
+  const [view, setView] = useState<'bubbles' | 'kanban' | 'projects' | 'analytics'>('bubbles');
   const [focusedTask, setFocusedTask] = useState<Task | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [autoStartPomodoro, setAutoStartPomodoro] = useState(false); // Por defecto desactivado
+  const [showKanbanHealthCheck, setShowKanbanHealthCheck] = useState(false); // Por defecto desactivado
   const [showSettings, setShowSettings] = useState(false);
+  const [showShortcutsCenter, setShowShortcutsCenter] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<{ id: string; title: string } | null>(null);
   const [isDeletingTask, setIsDeletingTask] = useState(false); 
   const [projectsViewMode, setProjectsViewMode] = useState<'grid' | 'calendar'>('grid');
   const [weekStartsOn, setWeekStartsOn] = useState<0 | 1>(1); // 0 = Domingo, 1 = Lunes
 
   const [overColumnId, setOverColumnId] = useState<string | null>(null);
+  const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
+  const [isBulkUpdating, setIsBulkUpdating] = useState(false);
+  const [lastSelectedTaskId, setLastSelectedTaskId] = useState<string | null>(null);
+  const [isPlanningNextWeek, setIsPlanningNextWeek] = useState(false);
+  const [snoozeMeta, setSnoozeMeta] = useState<Record<string, { count: number; lastPreset: string; updatedAt: string }>>(() => {
+    try {
+      const raw = localStorage.getItem('flow-snooze-meta');
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return {};
+    }
+  });
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -56,6 +71,17 @@ export default function App() {
     fetchTasks();
     fetchProjects();
   }, []);
+
+  useEffect(() => {
+    if (view !== 'kanban' && selectedTaskIds.length > 0) {
+      setSelectedTaskIds([]);
+      setLastSelectedTaskId(null);
+    }
+  }, [view, selectedTaskIds.length]);
+
+  useEffect(() => {
+    localStorage.setItem('flow-snooze-meta', JSON.stringify(snoozeMeta));
+  }, [snoozeMeta]);
 
   const fetchTasks = async () => {
     try {
@@ -163,6 +189,197 @@ export default function App() {
     handleTaskStatusChange(id, newStatus);
   };
 
+  const calculateSnoozeDate = (preset: 'laterToday' | 'tomorrow' | 'nextMonday') => {
+    const now = new Date();
+
+    if (preset === 'laterToday') {
+      const laterToday = new Date(now);
+      laterToday.setHours(Math.max(now.getHours() + 3, 17), 0, 0, 0);
+      return laterToday;
+    }
+
+    if (preset === 'tomorrow') {
+      const tomorrow = new Date(now);
+      tomorrow.setDate(now.getDate() + 1);
+      tomorrow.setHours(9, 0, 0, 0);
+      return tomorrow;
+    }
+
+    const nextMonday = new Date(now);
+    const day = now.getDay();
+    const daysUntilNextMonday = ((8 - day) % 7) || 7;
+    nextMonday.setDate(now.getDate() + daysUntilNextMonday);
+    nextMonday.setHours(9, 0, 0, 0);
+    return nextMonday;
+  };
+
+  const handleSnoozeTask = async (id: string, preset: 'laterToday' | 'tomorrow' | 'nextMonday') => {
+    const dueDate = calculateSnoozeDate(preset).toISOString();
+
+    setTasks((prev) => prev.map((task) => (task.id === id ? { ...task, due_date: dueDate } : task)));
+    setSnoozeMeta((prev) => ({
+      ...prev,
+      [id]: {
+        count: (prev[id]?.count || 0) + 1,
+        lastPreset: preset,
+        updatedAt: new Date().toISOString(),
+      },
+    }));
+
+    try {
+      await fetch(`/api/tasks/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ due_date: dueDate }),
+      });
+      await fetchTasks();
+    } catch (err) {
+      console.error(err);
+      await fetchTasks();
+    }
+  };
+
+  const toggleTaskSelection = (id: string, shiftKey = false, orderedIds: string[] = []) => {
+    setSelectedTaskIds((prev) => {
+      if (shiftKey && lastSelectedTaskId && orderedIds.length > 0) {
+        const startIndex = orderedIds.indexOf(lastSelectedTaskId);
+        const endIndex = orderedIds.indexOf(id);
+
+        if (startIndex !== -1 && endIndex !== -1) {
+          const [from, to] = startIndex < endIndex ? [startIndex, endIndex] : [endIndex, startIndex];
+          const rangeIds = orderedIds.slice(from, to + 1);
+          return Array.from(new Set([...prev, ...rangeIds]));
+        }
+      }
+
+      return prev.includes(id) ? prev.filter((taskId) => taskId !== id) : [...prev, id];
+    });
+
+    setLastSelectedTaskId(id);
+  };
+
+  const toggleColumnSelection = (columnTaskIds: string[]) => {
+    if (columnTaskIds.length === 0) return;
+
+    setSelectedTaskIds((prev) => {
+      const allSelected = columnTaskIds.every((id) => prev.includes(id));
+      if (allSelected) {
+        return prev.filter((id) => !columnTaskIds.includes(id));
+      }
+
+      return Array.from(new Set([...prev, ...columnTaskIds]));
+    });
+
+    setLastSelectedTaskId(columnTaskIds[0]);
+  };
+
+  const clearTaskSelection = () => {
+    setSelectedTaskIds([]);
+    setLastSelectedTaskId(null);
+  };
+
+  const bulkUpdateSelected = async (updates: Partial<Task>) => {
+    if (selectedTaskIds.length === 0) return;
+
+    setIsBulkUpdating(true);
+    setTasks((prev) =>
+      prev.map((task) =>
+        selectedTaskIds.includes(task.id) ? { ...task, ...updates } : task
+      )
+    );
+
+    try {
+      await Promise.all(
+        selectedTaskIds.map((id) =>
+          fetch(`/api/tasks/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updates),
+          })
+        )
+      );
+      await fetchTasks();
+      clearTaskSelection();
+    } catch (err) {
+      console.error(err);
+      await fetchTasks();
+    } finally {
+      setIsBulkUpdating(false);
+    }
+  };
+
+  const bulkDeleteSelected = async () => {
+    if (selectedTaskIds.length === 0) return;
+    setIsBulkUpdating(true);
+
+    try {
+      await Promise.all(
+        selectedTaskIds.map((id) =>
+          fetch(`/api/tasks/${id}`, {
+            method: 'DELETE',
+          })
+        )
+      );
+      await fetchTasks();
+      clearTaskSelection();
+    } catch (err) {
+      console.error(err);
+      await fetchTasks();
+    } finally {
+      setIsBulkUpdating(false);
+    }
+  };
+
+  const handlePlanNextWeek = async () => {
+    const candidates = tasks
+      .filter((t) => t.status === 'backlog')
+      .sort((a, b) => (b.priority - a.priority) || new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+      .slice(0, 3);
+
+    if (candidates.length === 0) return;
+
+    const now = new Date();
+    const nextMonday = new Date(now);
+    const day = now.getDay();
+    const daysUntilNextMonday = ((8 - day) % 7) || 7;
+    nextMonday.setDate(now.getDate() + daysUntilNextMonday);
+    nextMonday.setHours(9, 0, 0, 0);
+
+    setIsPlanningNextWeek(true);
+    setTasks((prev) =>
+      prev.map((task) =>
+        candidates.some((candidate) => candidate.id === task.id)
+          ? {
+              ...task,
+              status: 'todo',
+              due_date: task.due_date || nextMonday.toISOString(),
+            }
+          : task
+      )
+    );
+
+    try {
+      await Promise.all(
+        candidates.map((task) =>
+          fetch(`/api/tasks/${task.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              status: 'todo',
+              due_date: task.due_date || nextMonday.toISOString(),
+            }),
+          })
+        )
+      );
+      await fetchTasks();
+    } catch (err) {
+      console.error(err);
+      await fetchTasks();
+    } finally {
+      setIsPlanningNextWeek(false);
+    }
+  };
+
   const findColumnId = (id: string): TaskStatus | undefined => {
     if (['backlog', 'todo', 'doing', 'done'].includes(id)) return id as TaskStatus;
     return tasks.find(t => t.id === id)?.status;
@@ -212,14 +429,125 @@ export default function App() {
   };
 
   const activeTask = activeId ? tasks.find((t) => t.id === activeId) : null;
+  const nowMs = Date.now();
+  const weekAhead = new Date(nowMs + 1000 * 60 * 60 * 24 * 7).getTime();
+  const doingTasks = tasks.filter((t) => t.status === 'doing');
+  const overdueTasks = tasks.filter((t) => t.status !== 'done' && t.due_date && new Date(t.due_date).getTime() < nowMs);
+  const noDateTasks = tasks.filter((t) => (t.status === 'todo' || t.status === 'doing') && !t.due_date);
+  const staleTasks = doingTasks.filter((t) => {
+    const createdAt = new Date(t.created_at).getTime();
+    if (Number.isNaN(createdAt)) return false;
+    return nowMs - createdAt > 1000 * 60 * 60 * 24 * 3;
+  });
+
+  const healthItems = [
+    {
+      key: 'doing',
+      label: 'WIP en Doing',
+      value: doingTasks.length,
+      threshold: 5,
+      okText: 'Balanceado',
+      warnText: 'Sobrecarga',
+    },
+    {
+      key: 'overdue',
+      label: 'Vencidas',
+      value: overdueTasks.length,
+      threshold: 0,
+      okText: 'Al día',
+      warnText: 'Atención',
+    },
+    {
+      key: 'nodate',
+      label: 'Sin fecha',
+      value: noDateTasks.length,
+      threshold: 2,
+      okText: 'Priorizado',
+      warnText: 'Sin claridad',
+    },
+    {
+      key: 'stale',
+      label: 'Bloqueadas +3d',
+      value: staleTasks.length,
+      threshold: 0,
+      okText: 'Fluyendo',
+      warnText: 'Atascado',
+    },
+  ];
+
+  const projectWorkload = (projects.length > 0 ? projects : [{ id: 'none', name: 'Sin proyecto' }]).map((project) => {
+    const scopedTasks = tasks.filter((task) => {
+      if (project.id === 'none') return !task.project_id;
+      return task.project_id === project.id;
+    });
+
+    const active = scopedTasks.filter((task) => task.status !== 'done').length;
+    const dueThisWeek = scopedTasks.filter((task) => {
+      if (!task.due_date || task.status === 'done') return false;
+      const dueMs = new Date(task.due_date).getTime();
+      return dueMs >= nowMs && dueMs <= weekAhead;
+    }).length;
+    const overdue = scopedTasks.filter((task) => {
+      if (!task.due_date || task.status === 'done') return false;
+      return new Date(task.due_date).getTime() < nowMs;
+    }).length;
+
+    const loadLevel = active > 8 ? 'high' : active > 4 ? 'medium' : 'low';
+
+    return {
+      id: project.id,
+      name: project.name,
+      color: project.id === 'none' ? '#6B7280' : projects.find((p) => p.id === project.id)?.color || '#3b82f6',
+      active,
+      dueThisWeek,
+      overdue,
+      loadLevel,
+    };
+  });
+
+  const shortcutSections = [
+    {
+      title: 'Captura rápida',
+      items: [
+        { keys: 'Ctrl/Cmd + Espacio', action: 'Abrir/cerrar captura' },
+        { keys: 'Ctrl/Cmd + K', action: 'Abrir CommandBar' },
+        { keys: 'Enter', action: 'Crear tarea' },
+        { keys: 'Esc', action: 'Cerrar overlays/modal' },
+      ],
+    },
+    {
+      title: 'Kanban Pro',
+      items: [
+        { keys: 'Arrastrar y soltar', action: 'Mover entre columnas' },
+        { keys: 'Shift + click', action: 'Seleccionar rango en columna' },
+        { keys: 'Toggle columna', action: 'Seleccionar todas de una columna' },
+      ],
+    },
+    {
+      title: 'Snooze inteligente',
+      items: [
+        { keys: 'Boton reloj', action: 'Posponer tarea' },
+        { keys: 'Esta tarde', action: 'Reagenda para hoy tarde' },
+        { keys: 'Mañana/Lunes', action: 'Reagenda a bloque futuro' },
+      ],
+    },
+  ];
 
   return (
     <div className="h-screen w-screen flex flex-col overflow-hidden bg-flow-bg">
+      {/* Ambient Background Orbs */}
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+        <div className="ambient-orb ambient-orb-1" />
+        <div className="ambient-orb ambient-orb-2" />
+        <div className="ambient-orb ambient-orb-3" />
+      </div>
+
       {/* Navigation Rail */}
       <nav className="fixed left-6 top-1/2 -translate-y-1/2 z-40 flex flex-col gap-6 p-2 glass rounded-full">
         <NavButton active={view === 'bubbles'} onClick={() => setView('bubbles')} icon={<Zap />} label="Flujo" />
         <NavButton active={view === 'kanban'} onClick={() => setView('kanban')} icon={<LayoutGrid />} label="Tablero" />
         <NavButton active={view === 'projects'} onClick={() => setView('projects')} icon={<List />} label="Proyectos" />
+        <NavButton active={view === 'analytics'} onClick={() => setView('analytics')} icon={<BarChart3 />} label="Estadísticas" />
         <div className="w-8 h-px bg-white/10 mx-auto my-2" />
         <NavButton active={showSettings} onClick={() => setShowSettings(true)} icon={<Settings />} label="Ajustes" />
       </nav>
@@ -269,6 +597,95 @@ export default function App() {
               onDragEnd={handleDragEnd}
               onDragCancel={handleDragCancel}
             >
+              <AnimatePresence>
+                {selectedTaskIds.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 12 }}
+                    className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 glass rounded-2xl px-4 py-3 flex items-center gap-2 max-w-[calc(100vw-2rem)] overflow-x-auto no-scrollbar"
+                  >
+                    <div className="flex items-center gap-2 pr-2 mr-2 border-r border-white/10">
+                      <CheckSquare className="w-4 h-4 text-flow-accent" />
+                      <span className="text-xs font-medium text-white/70">{selectedTaskIds.length} seleccionadas</span>
+                    </div>
+
+                    <button
+                      disabled={isBulkUpdating}
+                      onClick={() => bulkUpdateSelected({ status: 'todo' })}
+                      className="px-2.5 py-1 rounded-md bg-white/5 hover:bg-white/10 text-[11px] text-white/70 disabled:opacity-40"
+                    >
+                      A Hoy
+                    </button>
+                    <button
+                      disabled={isBulkUpdating}
+                      onClick={() => bulkUpdateSelected({ status: 'doing' })}
+                      className="px-2.5 py-1 rounded-md bg-white/5 hover:bg-white/10 text-[11px] text-white/70 disabled:opacity-40"
+                    >
+                      En Proceso
+                    </button>
+                    <button
+                      disabled={isBulkUpdating}
+                      onClick={() => bulkUpdateSelected({ status: 'done', completed_at: new Date().toISOString() })}
+                      className="px-2.5 py-1 rounded-md bg-emerald-500/20 hover:bg-emerald-500/30 text-[11px] text-emerald-300 disabled:opacity-40"
+                    >
+                      Archivar
+                    </button>
+
+                    <button
+                      disabled={isBulkUpdating}
+                      onClick={() => bulkUpdateSelected({ priority: 3 })}
+                      className="px-2.5 py-1 rounded-md bg-red-500/20 hover:bg-red-500/30 text-[11px] text-red-300 disabled:opacity-40"
+                    >
+                      Prioridad Alta
+                    </button>
+                    <button
+                      disabled={isBulkUpdating}
+                      onClick={() => bulkUpdateSelected({ due_date: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() })}
+                      className="px-2.5 py-1 rounded-md bg-flow-accent/20 hover:bg-flow-accent/30 text-[11px] text-blue-300 disabled:opacity-40"
+                    >
+                      Vence Mañana
+                    </button>
+
+                    <button
+                      disabled={isBulkUpdating}
+                      onClick={bulkDeleteSelected}
+                      className="px-2.5 py-1 rounded-md bg-red-500/20 hover:bg-red-500/35 text-[11px] text-red-300 disabled:opacity-40"
+                    >
+                      Eliminar
+                    </button>
+                    <button
+                      disabled={isBulkUpdating}
+                      onClick={clearTaskSelection}
+                      className="p-1.5 rounded-md hover:bg-white/10 text-white/50 disabled:opacity-40"
+                      title="Limpiar selección"
+                    >
+                      <Square className="w-3.5 h-3.5" />
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {showKanbanHealthCheck && (
+                <div className="fixed top-6 right-8 z-40 w-64 glass rounded-2xl p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-mono uppercase tracking-widest text-white/35">Health Check</p>
+                    <span className="text-[10px] text-flow-accent/80">Tablero</span>
+                  </div>
+                  {healthItems.map((item) => {
+                    const isHealthy = item.value <= item.threshold;
+                    return (
+                      <div key={item.key} className="flex items-center justify-between text-[11px] py-1 border-b border-white/5 last:border-b-0">
+                        <span className="text-white/55">{item.label}</span>
+                        <span className={isHealthy ? 'text-emerald-300' : 'text-amber-300'}>
+                          {item.value} · {isHealthy ? item.okText : item.warnText}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
               <motion.div
                 key="kanban"
                 initial={{ opacity: 0, y: 20 }}
@@ -287,6 +704,11 @@ export default function App() {
                   projects={projects}
                   isOver={overColumnId === 'backlog'}
                   isDragging={!!activeId}
+                  selectedTaskIds={selectedTaskIds}
+                  onToggleTaskSelect={toggleTaskSelection}
+                  onToggleColumnSelect={toggleColumnSelection}
+                  onSnoozeTask={handleSnoozeTask}
+                  snoozeMeta={snoozeMeta}
                 />
                 <KanbanColumn 
                   id="todo"
@@ -299,6 +721,11 @@ export default function App() {
                   projects={projects}
                   isOver={overColumnId === 'todo'}
                   isDragging={!!activeId}
+                  selectedTaskIds={selectedTaskIds}
+                  onToggleTaskSelect={toggleTaskSelection}
+                  onToggleColumnSelect={toggleColumnSelection}
+                  onSnoozeTask={handleSnoozeTask}
+                  snoozeMeta={snoozeMeta}
                 />
                 <KanbanColumn 
                   id="doing"
@@ -310,6 +737,11 @@ export default function App() {
                   projects={projects}
                   isOver={overColumnId === 'doing'}
                   isDragging={!!activeId}
+                  selectedTaskIds={selectedTaskIds}
+                  onToggleTaskSelect={toggleTaskSelection}
+                  onToggleColumnSelect={toggleColumnSelection}
+                  onSnoozeTask={handleSnoozeTask}
+                  snoozeMeta={snoozeMeta}
                 />
                 <KanbanColumn 
                   id="done"
@@ -321,6 +753,11 @@ export default function App() {
                   projects={projects}
                   isOver={overColumnId === 'done'}
                   isDragging={!!activeId}
+                  selectedTaskIds={selectedTaskIds}
+                  onToggleTaskSelect={toggleTaskSelection}
+                  onToggleColumnSelect={toggleColumnSelection}
+                  onSnoozeTask={handleSnoozeTask}
+                  snoozeMeta={snoozeMeta}
                 />
               </motion.div>
 
@@ -391,6 +828,43 @@ export default function App() {
                       Nuevo Proyecto
                     </button>
                   </div>
+                </div>
+
+                <div className="mb-8 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                  {projectWorkload.map((item) => (
+                    <div key={item.id} className="glass rounded-xl p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
+                          <h4 className="text-sm font-semibold text-white/85 truncate">{item.name}</h4>
+                        </div>
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                          item.loadLevel === 'high'
+                            ? 'bg-red-500/20 text-red-300'
+                            : item.loadLevel === 'medium'
+                              ? 'bg-amber-500/20 text-amber-300'
+                              : 'bg-emerald-500/20 text-emerald-300'
+                        }`}>
+                          {item.loadLevel === 'high' ? 'Alta carga' : item.loadLevel === 'medium' ? 'Carga media' : 'Carga sana'}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-2">
+                        <div className="rounded-lg bg-white/5 p-2">
+                          <p className="text-[10px] text-white/35 uppercase tracking-wider">Activas</p>
+                          <p className="text-lg font-display font-bold text-white/85">{item.active}</p>
+                        </div>
+                        <div className="rounded-lg bg-white/5 p-2">
+                          <p className="text-[10px] text-white/35 uppercase tracking-wider">Semana</p>
+                          <p className="text-lg font-display font-bold text-blue-300">{item.dueThisWeek}</p>
+                        </div>
+                        <div className="rounded-lg bg-white/5 p-2">
+                          <p className="text-[10px] text-white/35 uppercase tracking-wider">Vencidas</p>
+                          <p className="text-lg font-display font-bold text-rose-300">{item.overdue}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
                 
                 <AnimatePresence mode="wait">
@@ -470,6 +944,22 @@ export default function App() {
               </div>
             </motion.div>
           )}
+
+          {view === 'analytics' && (
+            <motion.div
+              key="analytics"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="h-full p-12 pl-24 overflow-y-auto"
+            >
+              <AnalyticsView
+                tasks={tasks}
+                onPlanNextWeek={handlePlanNextWeek}
+                isPlanningNextWeek={isPlanningNextWeek}
+              />
+            </motion.div>
+          )}
         </AnimatePresence>
       </main>
 
@@ -538,9 +1028,88 @@ export default function App() {
                     </button>
                   </div>
                 </div>
+
+                <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl">
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium">Panel Health Check en Kanban</p>
+                    <p className="text-xs text-white/40">Muestra el panel fijo de métricas operativas en el tablero</p>
+                  </div>
+                  <button
+                    onClick={() => setShowKanbanHealthCheck(!showKanbanHealthCheck)}
+                    className={`w-12 h-6 rounded-full transition-colors relative ${showKanbanHealthCheck ? 'bg-flow-accent' : 'bg-white/10'}`}
+                  >
+                    <motion.div
+                      animate={{ x: showKanbanHealthCheck ? 24 : 4 }}
+                      className="absolute top-1 w-4 h-4 rounded-full bg-white shadow-sm"
+                    />
+                  </button>
+                </div>
+
+                <button
+                  onClick={() => setShowShortcutsCenter(true)}
+                  className="w-full flex items-center justify-between p-4 bg-white/5 rounded-xl hover:bg-white/10 transition-all"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-flow-accent/20 text-flow-accent flex items-center justify-center">
+                      <Keyboard className="w-4 h-4" />
+                    </div>
+                    <div className="text-left">
+                      <p className="text-sm font-medium">Centro de Atajos y Comandos</p>
+                      <p className="text-xs text-white/40">Guía rápida para dominar el flujo</p>
+                    </div>
+                  </div>
+                  <span className="text-xs text-white/35">Abrir</span>
+                </button>
               </div>
 
               <p className="text-[10px] text-white/20 text-center uppercase tracking-widest">The Flow OS v1.0</p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Shortcuts Center */}
+      <AnimatePresence>
+        {showShortcutsCenter && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[70] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={() => setShowShortcutsCenter(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="w-full max-w-3xl glass rounded-2xl p-6 space-y-6 max-h-[80vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <h2 className="text-xl font-display font-semibold">Centro de Atajos y Comandos</h2>
+                  <p className="text-xs text-white/40">Referencia rápida para moverte más rápido en Flow OS</p>
+                </div>
+                <button onClick={() => setShowShortcutsCenter(false)} className="p-2 hover:bg-white/5 rounded-full">
+                  <X className="w-5 h-5 text-white/40" />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {shortcutSections.map((section) => (
+                  <div key={section.title} className="rounded-xl bg-white/5 p-4 space-y-3">
+                    <h3 className="text-sm font-mono uppercase tracking-widest text-flow-accent/70">{section.title}</h3>
+                    <div className="space-y-2">
+                      {section.items.map((item) => (
+                        <div key={`${section.title}-${item.keys}`} className="flex items-start justify-between gap-3">
+                          <span className="text-[10px] px-2 py-1 rounded bg-white/10 text-white/75 font-mono">{item.keys}</span>
+                          <span className="text-xs text-white/55 text-right leading-relaxed">{item.action}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </motion.div>
           </motion.div>
         )}
@@ -601,7 +1170,7 @@ export default function App() {
       </AnimatePresence>
 
       {/* UI Overlays */}
-      <CommandBar onTaskCreated={handleTaskCreated} />
+      <CommandBar onTaskCreated={handleTaskCreated} projects={projects} />
       <FocusMode 
         task={focusedTask} 
         projects={projects}
@@ -616,6 +1185,8 @@ export default function App() {
         <span className="px-1.5 py-0.5 rounded border border-white/10">CTRL</span>
         <span>+</span>
         <span className="px-1.5 py-0.5 rounded border border-white/10">ESPACIO</span>
+        <span className="ml-2">o</span>
+        <span className="px-1.5 py-0.5 rounded border border-white/10">K</span>
         <span className="ml-2">para capturar</span>
       </div>
     </div>
@@ -645,9 +1216,22 @@ function DropZone({ label, color }: { label: string, color: string }) {
   );
 }
 
-function KanbanColumn({ id, title, subtitle, color, tasks, onTaskClick, onDelete, projects, isOver, isDragging }: { id: string, title: string, subtitle?: string, color: string, tasks: Task[], onTaskClick: (task: Task) => void, onDelete: (id: string) => void, projects: Project[], isOver?: boolean, isDragging?: boolean }) {
+function KanbanColumn({ id, title, subtitle, color, tasks, onTaskClick, onDelete, projects, isOver, isDragging, selectedTaskIds, onToggleTaskSelect, onToggleColumnSelect, onSnoozeTask, snoozeMeta }: { id: string, title: string, subtitle?: string, color: string, tasks: Task[], onTaskClick: (task: Task) => void, onDelete: (id: string) => void, projects: Project[], isOver?: boolean, isDragging?: boolean, selectedTaskIds: string[], onToggleTaskSelect: (id: string, shiftKey: boolean, orderedIds: string[]) => void, onToggleColumnSelect: (columnTaskIds: string[]) => void, onSnoozeTask: (id: string, preset: 'laterToday' | 'tomorrow' | 'nextMonday') => void, snoozeMeta: Record<string, { count: number; lastPreset: string; updatedAt: string }> }) {
   const { setNodeRef, isOver: isDirectlyOver } = useDroppable({ id });
   const highlighted = isOver || isDirectlyOver;
+  const taskIds = tasks.map((t) => t.id);
+  const selectedCount = taskIds.filter((taskId) => selectedTaskIds.includes(taskId)).length;
+  const allSelected = taskIds.length > 0 && selectedCount === taskIds.length;
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'backlog': return <Clock className="w-3.5 h-3.5 text-white/40" />;
+      case 'todo': return <Zap className="w-3.5 h-3.5 text-flow-accent" />;
+      case 'doing': return <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 4, ease: "linear" }}><Settings className="w-3.5 h-3.5 text-amber-400" /></motion.div>;
+      case 'done': return <div className="w-3.5 h-3.5 rounded-full bg-emerald-500/20 flex items-center justify-center"><div className="w-1.5 h-1.5 rounded-full bg-emerald-500" /></div>;
+      default: return null;
+    }
+  };
 
   return (
     <div className={`flex-shrink-0 w-72 flex flex-col rounded-xl transition-colors duration-200 ${
@@ -661,10 +1245,21 @@ function KanbanColumn({ id, title, subtitle, color, tasks, onTaskClick, onDelete
           }`}
           style={{ backgroundColor: color }}
         />
+        {getStatusIcon(id)}
         <h3 className="text-sm font-medium text-white/80">{title}</h3>
         {subtitle && (
           <span className="text-[10px] text-white/25 font-normal">{subtitle}</span>
         )}
+        <button
+          onClick={() => onToggleColumnSelect(taskIds)}
+          className={`p-1 rounded-md transition-all ${
+            allSelected ? 'text-flow-accent bg-flow-accent/10' : 'text-white/25 hover:text-white/60 hover:bg-white/5'
+          }`}
+          title={allSelected ? 'Deseleccionar columna' : 'Seleccionar columna'}
+        >
+          {allSelected ? <CheckSquare className="w-3.5 h-3.5" /> : <Square className="w-3.5 h-3.5" />}
+        </button>
+        {selectedCount > 0 && <span className="text-[10px] text-flow-accent/80">{selectedCount}</span>}
         <span className={`text-[11px] font-mono ml-auto transition-colors duration-200 ${
           highlighted && isDragging ? 'text-white/50' : 'text-white/25'
         }`}>{tasks.length}</span>
@@ -687,6 +1282,10 @@ function KanbanColumn({ id, title, subtitle, color, tasks, onTaskClick, onDelete
               onClick={onTaskClick} 
               onDelete={onDelete}
               projects={projects}
+              selected={selectedTaskIds.includes(task.id)}
+              onToggleSelect={(id, shiftKey) => onToggleTaskSelect(id, shiftKey, taskIds)}
+              onSnooze={onSnoozeTask}
+              snoozeCount={snoozeMeta[task.id]?.count || 0}
             />
           ))}
         </SortableContext>
@@ -694,8 +1293,8 @@ function KanbanColumn({ id, title, subtitle, color, tasks, onTaskClick, onDelete
         {/* Empty state */}
         {tasks.length === 0 && !isDragging && (
           <div className="flex flex-col items-center justify-center py-12 px-4">
-            <div className="w-8 h-8 rounded-lg border border-dashed border-white/10 flex items-center justify-center mb-2">
-              <Plus className="w-3.5 h-3.5 text-white/15" />
+            <div className="w-8 h-8 rounded-lg border border-dashed border-white/10 flex items-center justify-center mb-2 hover:bg-white/5 text-white/20 hover:text-white/40 text-xs font-medium transition-all">
+              <Plus className="w-3.5 h-3.5 text-white/15 group-hover/add:scale-110 transition-transform" />
             </div>
             <p className="text-[11px] text-white/15">Sin tareas</p>
           </div>
