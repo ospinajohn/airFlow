@@ -40,7 +40,11 @@ async function startServer() {
 
   // API Routes
   app.get("/api/tasks", (req, res) => {
-    const tasks = db.prepare("SELECT * FROM tasks WHERE completed_at IS NULL OR completed_at > datetime('now', '-24 hours')").all();
+    const tasks = db
+      .prepare(
+        "SELECT * FROM tasks WHERE completed_at IS NULL OR completed_at > datetime('now', '-24 hours')",
+      )
+      .all();
     res.json(tasks);
   });
 
@@ -51,23 +55,36 @@ async function startServer() {
       for (let i = days - 1; i >= 0; i--) {
         const startOffset = -i;
         const endOffset = -(i - 1);
-        const row = db.prepare(
-          `SELECT COUNT(*) as count FROM tasks WHERE completed_at IS NOT NULL AND completed_at >= datetime('now', ? || ' days', 'start of day') AND completed_at < datetime('now', ? || ' days', 'start of day')`
-        ).get(startOffset.toString(), endOffset.toString()) as { count: number };
+        const row = db
+          .prepare(
+            `SELECT COUNT(*) as count FROM tasks WHERE completed_at IS NOT NULL AND completed_at >= datetime('now', ? || ' days', 'start of day') AND completed_at < datetime('now', ? || ' days', 'start of day')`,
+          )
+          .get(startOffset.toString(), endOffset.toString()) as {
+          count: number;
+        };
         const date = new Date();
         date.setDate(date.getDate() - i);
-        stats.push({ date: date.toISOString().split('T')[0], completed: row.count });
+        stats.push({
+          date: date.toISOString().split("T")[0],
+          completed: row.count,
+        });
       }
 
-      const totalCompleted = db.prepare(
-        "SELECT COUNT(*) as count FROM tasks WHERE completed_at IS NOT NULL"
-      ).get() as { count: number };
+      const totalCompleted = db
+        .prepare(
+          "SELECT COUNT(*) as count FROM tasks WHERE completed_at IS NOT NULL",
+        )
+        .get() as { count: number };
 
-      const totalTasks = db.prepare("SELECT COUNT(*) as count FROM tasks").get() as { count: number };
+      const totalTasks = db
+        .prepare("SELECT COUNT(*) as count FROM tasks")
+        .get() as { count: number };
 
-      const weekCompleted = db.prepare(
-        "SELECT COUNT(*) as count FROM tasks WHERE completed_at IS NOT NULL AND completed_at >= datetime('now', '-7 days')"
-      ).get() as { count: number };
+      const weekCompleted = db
+        .prepare(
+          "SELECT COUNT(*) as count FROM tasks WHERE completed_at IS NOT NULL AND completed_at >= datetime('now', '-7 days')",
+        )
+        .get() as { count: number };
 
       res.json({
         daily: stats,
@@ -76,37 +93,48 @@ async function startServer() {
         weekCompleted: weekCompleted.count,
       });
     } catch (err) {
-      console.error('Stats error:', err);
-      res.status(500).json({ error: 'Failed to fetch stats' });
+      console.error("Stats error:", err);
+      res.status(500).json({ error: "Failed to fetch stats" });
     }
   });
 
   app.post("/api/tasks", (req, res) => {
-    const { id, title, description, status, priority, due_date, project_id } = req.body;
-    const stmt = db.prepare("INSERT INTO tasks (id, title, description, status, priority, due_date, project_id) VALUES (?, ?, ?, ?, ?, ?, ?)");
-    stmt.run(id, title, description, status || 'backlog', priority || 1, due_date, project_id);
+    const { id, title, description, status, priority, due_date, project_id } =
+      req.body;
+    const stmt = db.prepare(
+      "INSERT INTO tasks (id, title, description, status, priority, due_date, project_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    );
+    stmt.run(
+      id,
+      title,
+      description,
+      status || "backlog",
+      priority || 1,
+      due_date,
+      project_id,
+    );
     res.status(201).json({ success: true });
   });
 
   app.patch("/api/tasks/:id", (req, res) => {
     const { id } = req.params;
     const updates = req.body;
-    
+
     const fields = Object.keys(updates);
     if (fields.length === 0) return res.json({ success: true });
 
     // Special handling for completion
-    if (updates.status === 'done' && !updates.completed_at) {
+    if (updates.status === "done" && !updates.completed_at) {
       updates.completed_at = new Date().toISOString();
-      fields.push('completed_at');
+      fields.push("completed_at");
     }
 
-    const setClause = fields.map(f => `${f} = ?`).join(', ');
-    const values = fields.map(f => updates[f]);
+    const setClause = fields.map((f) => `${f} = ?`).join(", ");
+    const values = fields.map((f) => updates[f]);
 
     const stmt = db.prepare(`UPDATE tasks SET ${setClause} WHERE id = ?`);
     stmt.run(...values, id);
-    
+
     res.json({ success: true });
   });
 
@@ -117,7 +145,9 @@ async function startServer() {
   });
 
   app.get("/api/projects", (req, res) => {
-    const projects = db.prepare("SELECT * FROM projects ORDER BY name COLLATE NOCASE ASC").all();
+    const projects = db
+      .prepare("SELECT * FROM projects ORDER BY name COLLATE NOCASE ASC")
+      .all();
     res.json(projects);
   });
 
@@ -127,7 +157,9 @@ async function startServer() {
       const normalizedName = typeof name === "string" ? name.trim() : "";
 
       if (!normalizedName) {
-        return res.status(400).json({ error: "El nombre del proyecto es obligatorio" });
+        return res
+          .status(400)
+          .json({ error: "El nombre del proyecto es obligatorio" });
       }
 
       const existing = db
@@ -135,13 +167,24 @@ async function startServer() {
         .get(normalizedName) as { id: string } | undefined;
 
       if (existing) {
-        return res.status(409).json({ error: "Ya existe un proyecto con ese nombre" });
+        return res
+          .status(409)
+          .json({ error: "Ya existe un proyecto con ese nombre" });
       }
 
-      const projectId = typeof id === "string" && id.trim().length > 0 ? id.trim() : randomUUID();
-      db.prepare("INSERT INTO projects (id, name, color) VALUES (?, ?, ?)").run(projectId, normalizedName, color || null);
+      const projectId =
+        typeof id === "string" && id.trim().length > 0
+          ? id.trim()
+          : randomUUID();
+      db.prepare("INSERT INTO projects (id, name, color) VALUES (?, ?, ?)").run(
+        projectId,
+        normalizedName,
+        color || null,
+      );
 
-      const created = db.prepare("SELECT * FROM projects WHERE id = ?").get(projectId);
+      const created = db
+        .prepare("SELECT * FROM projects WHERE id = ?")
+        .get(projectId);
       return res.status(201).json(created);
     } catch (err) {
       console.error("Create project error:", err);
@@ -154,7 +197,9 @@ async function startServer() {
       const { id } = req.params;
       const { name, color } = req.body;
 
-      const current = db.prepare("SELECT * FROM projects WHERE id = ?").get(id) as
+      const current = db
+        .prepare("SELECT * FROM projects WHERE id = ?")
+        .get(id) as
         | { id: string; name: string; color: string | null }
         | undefined;
 
@@ -164,25 +209,37 @@ async function startServer() {
 
       const nextName = typeof name === "string" ? name.trim() : current.name;
       if (!nextName) {
-        return res.status(400).json({ error: "El nombre del proyecto es obligatorio" });
+        return res
+          .status(400)
+          .json({ error: "El nombre del proyecto es obligatorio" });
       }
 
       const duplicate = db
-        .prepare("SELECT id FROM projects WHERE lower(name) = lower(?) AND id != ? LIMIT 1")
+        .prepare(
+          "SELECT id FROM projects WHERE lower(name) = lower(?) AND id != ? LIMIT 1",
+        )
         .get(nextName, id) as { id: string } | undefined;
 
       if (duplicate) {
-        return res.status(409).json({ error: "Ya existe un proyecto con ese nombre" });
+        return res
+          .status(409)
+          .json({ error: "Ya existe un proyecto con ese nombre" });
       }
 
       const nextColor = typeof color === "string" ? color : current.color;
-      db.prepare("UPDATE projects SET name = ?, color = ? WHERE id = ?").run(nextName, nextColor || null, id);
+      db.prepare("UPDATE projects SET name = ?, color = ? WHERE id = ?").run(
+        nextName,
+        nextColor || null,
+        id,
+      );
 
       const updated = db.prepare("SELECT * FROM projects WHERE id = ?").get(id);
       return res.json(updated);
     } catch (err) {
       console.error("Update project error:", err);
-      return res.status(500).json({ error: "No se pudo actualizar el proyecto" });
+      return res
+        .status(500)
+        .json({ error: "No se pudo actualizar el proyecto" });
     }
   });
 
@@ -190,13 +247,17 @@ async function startServer() {
     try {
       const { id } = req.params;
 
-      const project = db.prepare("SELECT id FROM projects WHERE id = ?").get(id) as { id: string } | undefined;
+      const project = db
+        .prepare("SELECT id FROM projects WHERE id = ?")
+        .get(id) as { id: string } | undefined;
       if (!project) {
         return res.status(404).json({ error: "Proyecto no encontrado" });
       }
 
       const tx = db.transaction((projectId: string) => {
-        db.prepare("UPDATE tasks SET project_id = NULL WHERE project_id = ?").run(projectId);
+        db.prepare(
+          "UPDATE tasks SET project_id = NULL WHERE project_id = ?",
+        ).run(projectId);
         db.prepare("DELETE FROM projects WHERE id = ?").run(projectId);
       });
 
@@ -210,8 +271,14 @@ async function startServer() {
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
+    const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: {
+        middlewareMode: true,
+        hmr: {
+          server: app.listen().close(), // Ensure HMR can attach correctly
+        },
+      },
       appType: "spa",
     });
     app.use(vite.middlewares);
