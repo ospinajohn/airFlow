@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { motion } from "motion/react";
+import { motion, AnimatePresence } from "motion/react";
 import {
   Calendar,
   Clock,
@@ -19,6 +19,13 @@ const STATUS_COLORS: Record<string, string> = {
   todo: "#3B82F6",
   doing: "#F59E0B",
   done: "#10B981",
+};
+
+const STATUS_GLOW: Record<string, string> = {
+  backlog: "rgba(107,114,128,0.15)",
+  todo: "rgba(59,130,246,0.15)",
+  doing: "rgba(245,158,11,0.15)",
+  done: "rgba(16,185,129,0.15)",
 };
 
 const PRIORITY_CONFIG: Record<
@@ -75,10 +82,12 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({
 
   const [timeUntilDue, setTimeUntilDue] = useState<string | null>(null);
   const [showSnoozeMenu, setShowSnoozeMenu] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
 
   const project = projects.find((p) => p.id === task.project_id);
   const priority = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG[1];
   const statusColor = STATUS_COLORS[task.status] || STATUS_COLORS.backlog;
+  const statusGlow = STATUS_GLOW[task.status] || STATUS_GLOW.backlog;
 
   useEffect(() => {
     if (!task.due_date) {
@@ -125,27 +134,78 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({
   };
 
   return (
-    <div
+    <motion.div
       ref={setNodeRef}
       style={style}
       {...attributes}
       {...listeners}
-      className={`group relative rounded-xl bg-flow-card/80 border transition-all duration-200 cursor-grab active:cursor-grabbing touch-none hover:shadow-lg hover:shadow-black/30 backdrop-blur-sm ${
+      onHoverStart={() => setIsHovered(true)}
+      onHoverEnd={() => setIsHovered(false)}
+      animate={
+        isHovered
+          ? {
+              y: -2,
+              boxShadow: `0 8px 32px ${statusGlow}, 0 2px 8px rgba(0,0,0,0.4)`,
+            }
+          : {
+              y: 0,
+              boxShadow: "0 1px 4px rgba(0,0,0,0.2)",
+            }
+      }
+      transition={{ duration: 0.2, ease: "easeOut" }}
+      className={`group relative rounded-xl bg-flow-card/80 border cursor-grab active:cursor-grabbing touch-none backdrop-blur-sm overflow-hidden ${
         selected
-          ? "border-flow-accent/70 shadow-[0_0_0_1px_rgba(59,130,246,0.4)]"
-          : "border-white/[0.06] hover:border-white/[0.14]"
+          ? "border-flow-accent/70"
+          : isHovered
+            ? "border-white/[0.18]"
+            : "border-white/[0.06]"
       }`}
     >
-      {/* Left accent border */}
-      <div
-        className="absolute left-0 top-3 bottom-3 w-[3px] rounded-full transition-all duration-200 group-hover:top-2 group-hover:bottom-2"
-        style={{ backgroundColor: statusColor, opacity: 0.6 }}
+      {/* Shimmer de luz interior en hover */}
+      <AnimatePresence>
+        {isHovered && (
+          <motion.div
+            initial={{ opacity: 0, x: "-100%" }}
+            animate={{ opacity: 1, x: "100%" }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.5, ease: "easeInOut" }}
+            className="absolute inset-0 pointer-events-none z-0"
+            style={{
+              background:
+                "linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.04) 50%, transparent 60%)",
+            }}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Glow sutil en la parte superior basado en el status */}
+      <motion.div
+        animate={
+          isHovered ? { opacity: 1, scaleX: 1 } : { opacity: 0, scaleX: 0.6 }
+        }
+        transition={{ duration: 0.25 }}
+        className="absolute top-0 left-4 right-4 h-[1px] pointer-events-none z-10"
+        style={{
+          background: `linear-gradient(90deg, transparent, ${statusColor}60, transparent)`,
+        }}
       />
 
-      <div className="p-3.5 pl-4">
-        {/* Header row: checkbox + proyecto + priority dot + acciones — misma fila */}
+      {/* Left accent border — se expande en hover */}
+      <motion.div
+        animate={
+          isHovered
+            ? { top: "6px", bottom: "6px", opacity: 1 }
+            : { top: "14px", bottom: "14px", opacity: 0.6 }
+        }
+        transition={{ duration: 0.2 }}
+        className="absolute left-0 w-[3px] rounded-full"
+        style={{ backgroundColor: statusColor }}
+      />
+
+      <div className="relative z-10 p-3.5 pl-4">
+        {/* Header row: checkbox + proyecto + priority dot + acciones */}
         <div className="flex items-center justify-between mb-2 min-h-[20px]">
-          {/* Izquierda: checkbox inline + punto de color + nombre de proyecto */}
+          {/* Izquierda: checkbox inline + badge de proyecto */}
           <div className="flex items-center gap-1.5 min-w-0 flex-1">
             {onToggleSelect && (
               <button
@@ -173,17 +233,22 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({
             {project && (
               <>
                 <div
-                  className="w-2 h-2 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: project.color || "#3b82f6" }}
+                  className="w-2 h-2 rounded-full flex-shrink-0 transition-all duration-200"
+                  style={{
+                    backgroundColor: project.color || "#3b82f6",
+                    boxShadow: isHovered
+                      ? `0 0 6px ${project.color || "#3b82f6"}90`
+                      : "none",
+                  }}
                 />
-                <span className="text-[10px] font-medium text-white/35 truncate">
+                <span className="text-[10px] font-medium text-white/35 truncate group-hover:text-white/50 transition-colors duration-200">
                   {project.name}
                 </span>
               </>
             )}
           </div>
 
-          {/* Derecha: priority dot (sin hover) → acciones (con hover) */}
+          {/* Derecha: priority dot → acciones en hover */}
           <div className="flex items-center gap-0.5 flex-shrink-0 ml-2">
             {task.priority === 3 && (
               <motion.div
@@ -220,11 +285,14 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({
               />
             )}
 
-            {/* Acciones visibles solo en hover */}
+            {/* Acciones con entrada escalonada */}
             <div className="hidden group-hover:flex items-center gap-0.5">
               {onSnooze && (
                 <div className="relative">
-                  <button
+                  <motion.button
+                    initial={{ opacity: 0, scale: 0.7 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0, duration: 0.15 }}
                     onPointerDown={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
@@ -237,7 +305,7 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({
                     title="Posponer"
                   >
                     <TimerReset className="w-3.5 h-3.5" />
-                  </button>
+                  </motion.button>
 
                   {showSnoozeMenu && (
                     <div
@@ -285,7 +353,10 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({
                 </div>
               )}
 
-              <button
+              <motion.button
+                initial={{ opacity: 0, scale: 0.7 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.05, duration: 0.15 }}
                 onClick={(e) => {
                   e.stopPropagation();
                   onClick(task);
@@ -294,10 +365,13 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({
                 title="Iniciar focus"
               >
                 <Play className="w-3.5 h-3.5" />
-              </button>
+              </motion.button>
 
               {onDelete && (
-                <button
+                <motion.button
+                  initial={{ opacity: 0, scale: 0.7 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.1, duration: 0.15 }}
                   onClick={(e) => {
                     e.stopPropagation();
                     onDelete(task.id);
@@ -306,33 +380,48 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({
                   title="Eliminar"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
-                </button>
+                </motion.button>
               )}
             </div>
           </div>
         </div>
 
-        {/* Título */}
-        <div
+        {/* Título con micro-lift */}
+        <motion.div
+          animate={isHovered ? { y: -1 } : { y: 0 }}
+          transition={{ duration: 0.2 }}
           onClick={(e) => {
             e.stopPropagation();
             onClick(task);
           }}
           className="cursor-pointer"
         >
-          <h4 className="text-[13px] font-medium leading-snug text-white/90 group-hover:text-white transition-colors">
+          <h4
+            className="text-[13px] font-medium leading-snug transition-colors duration-200"
+            style={{
+              color: isHovered
+                ? "rgba(255,255,255,0.95)"
+                : "rgba(255,255,255,0.88)",
+            }}
+          >
             {task.title}
           </h4>
-        </div>
+        </motion.div>
 
         {/* Properties row */}
-        <div className="flex items-center gap-2 mt-2.5 flex-wrap">
+        <motion.div
+          animate={isHovered ? { y: -1 } : { y: 0 }}
+          transition={{ duration: 0.2, delay: 0.03 }}
+          className="flex items-center gap-2 mt-2.5 flex-wrap"
+        >
           {task.due_date && (
             <div
-              className={`flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded-md ${
+              className={`flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded-md transition-all duration-200 ${
                 isOverdue
                   ? "bg-red-500/15 text-red-400"
-                  : "bg-white/[0.04] text-white/35"
+                  : isHovered
+                    ? "bg-white/[0.07] text-white/50"
+                    : "bg-white/[0.04] text-white/35"
               }`}
             >
               <Calendar className="w-3 h-3" />
@@ -347,11 +436,19 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({
 
           {timeUntilDue && (
             <div
-              className={`flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded-md font-semibold ${
+              className={`flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded-md font-semibold transition-all duration-200 ${
                 isOverdue
                   ? "bg-red-500/15 text-red-400"
                   : "bg-flow-accent/10 text-flow-accent/70"
               }`}
+              style={
+                !isOverdue && isHovered
+                  ? {
+                      backgroundColor: "rgba(59,130,246,0.18)",
+                      color: "rgba(59,130,246,0.9)",
+                    }
+                  : {}
+              }
             >
               <Clock className="w-3 h-3" />
               <span>{timeUntilDue}</span>
@@ -360,7 +457,7 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({
 
           {task.priority >= 2 && (
             <div
-              className={`flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-md ${priority.bg} ${priority.color}`}
+              className={`flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-md transition-all duration-200 ${priority.bg} ${priority.color}`}
             >
               <Flag className="w-3 h-3" />
               <span className="font-medium">{priority.label}</span>
@@ -387,8 +484,8 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({
               <span className="font-semibold">Evasión detectada</span>
             </div>
           )}
-        </div>
+        </motion.div>
       </div>
-    </div>
+    </motion.div>
   );
 };
