@@ -3,9 +3,7 @@ build/
 dist/
 coverage/
 .DS_Store
+.claude/settings.local.json
 *.log
 .env*
 !.env.example
-*.db
-*.sqlite
-*.sqlite3

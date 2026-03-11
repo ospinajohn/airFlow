@@ -1032,7 +1032,7 @@ export default function App() {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
-              className="h-full p-12 pl-24 overflow-y-auto"
+              className="h-full p-12 pl-24 overflow-y-auto no-scrollbar"
             >
               <div className="max-w-6xl mx-auto h-full flex flex-col">
                 <div className="flex items-center justify-between mb-12">
@@ -1145,7 +1145,7 @@ export default function App() {
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -20 }}
-                      className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-32"
+                      className="grid grid-cols-1 md:grid-cols-2 gap-5 pb-32"
                     >
                       {projects.length > 0 ? (
                         projects.map((project) => (
@@ -1154,138 +1154,55 @@ export default function App() {
                             className="glass rounded-2xl p-6 space-y-4"
                           >
                             <div className="flex items-center justify-between">
-                              <div className="flex flex-col min-w-0">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <div
-                                    className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                                    style={{
-                                      backgroundColor:
-                                        project.color || "#3b82f6",
-                                    }}
-                                  />
-                                  <h3 className="text-lg font-display font-bold text-white/90 truncate">
-                                    {project.name}
-                                  </h3>
-                                </div>
-                                <p className="text-[10px] font-mono uppercase tracking-widest text-white/30">
-                                  {
-                                    tasks.filter(
-                                      (t) => t.project_id === project.id,
-                                    ).length
-                                  }{" "}
-                                  Tareas Totales
-                                </p>
+                              <div className="flex items-center gap-2 min-w-0">
+                                <h3 className="text-sm font-mono uppercase tracking-widest text-white/40 truncate">
+                                  {project.name}
+                                </h3>
+                                <div
+                                  className="w-2 h-2 rounded-full flex-shrink-0"
+                                  style={{
+                                    backgroundColor: project.color || "#3b82f6",
+                                  }}
+                                />
                               </div>
                               <div className="flex items-center gap-1">
                                 <button
                                   onClick={() => openEditProjectModal(project)}
-                                  className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-white/40 hover:text-white/80 transition-colors"
-                                  title="Editar"
+                                  className="px-2 py-1 text-[10px] rounded-md bg-white/5 hover:bg-white/10 text-white/55 hover:text-white/80"
                                 >
-                                  <Settings className="w-3.5 h-3.5" />
+                                  Editar
                                 </button>
                                 <button
                                   onClick={() => handleDeleteProject(project)}
-                                  className="p-2 rounded-lg bg-red-500/5 hover:bg-red-500/15 text-red-400/40 hover:text-red-400 transition-colors"
-                                  title="Eliminar"
+                                  className="px-2 py-1 text-[10px] rounded-md bg-red-500/10 hover:bg-red-500/20 text-red-300"
                                 >
-                                  <Trash2 className="w-3.5 h-3.5" />
+                                  Eliminar
                                 </button>
                               </div>
                             </div>
-
-                            {/* Progress Bar */}
-                            {(() => {
-                              const projectTasks = tasks.filter(
-                                (t) => t.project_id === project.id,
-                              );
-                              const total = projectTasks.length;
-                              const completed = projectTasks.filter(
-                                (t) => t.status === "done",
-                              ).length;
-                              const percent =
-                                total > 0
-                                  ? Math.round((completed / total) * 100)
-                                  : 0;
-
-                              return (
-                                <div className="space-y-1.5">
-                                  <div className="flex items-center justify-between text-[10px] font-medium px-0.5">
-                                    <span className="text-white/40 uppercase tracking-tight">
-                                      Progreso del proyecto
+                            <div className="space-y-2">
+                              {tasks
+                                .filter((t) => t.project_id === project.id)
+                                .map((task) => (
+                                  <div
+                                    key={task.id}
+                                    onClick={() => setFocusedTask(task)}
+                                    className="flex items-center justify-between p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-all cursor-pointer group"
+                                  >
+                                    <span className="text-sm font-medium group-hover:text-flow-accent">
+                                      {task.title}
                                     </span>
-                                    <span className="text-flow-accent">
-                                      {percent}%
-                                    </span>
-                                  </div>
-                                  <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden border border-white/5">
-                                    <motion.div
-                                      initial={{ width: 0 }}
-                                      animate={{ width: `${percent}%` }}
-                                      className="h-full bg-gradient-to-r from-flow-accent to-flow-accent/60 shadow-[0_0_8px_rgba(59,130,246,0.3)]"
-                                    />
-                                  </div>
-                                </div>
-                              );
-                            })()}
-
-                            <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1 custom-scrollbar">
-                              {tasks.filter((t) => t.project_id === project.id)
-                                .length > 0 ? (
-                                tasks
-                                  .filter((t) => t.project_id === project.id)
-                                  .sort((a, b) =>
-                                    a.status === "done" ? 1 : -1,
-                                  )
-                                  .map((task) => (
-                                    <div
-                                      key={task.id}
-                                      onClick={() => setFocusedTask(task)}
-                                      className="group flex items-center justify-between p-3 rounded-xl bg-white/[0.03] hover:bg-white/5 border border-white/5 hover:border-white/10 transition-all cursor-pointer"
+                                    <span
+                                      className={`text-[9px] px-2 py-0.5 rounded-full ${
+                                        task.status === "done"
+                                          ? "bg-emerald-500/20 text-emerald-400"
+                                          : "bg-white/10 text-white/40"
+                                      }`}
                                     >
-                                      <div className="flex items-center gap-3 min-w-0">
-                                        <div
-                                          className={`w-4 h-4 rounded-md border flex items-center justify-center flex-shrink-0 transition-colors ${
-                                            task.status === "done"
-                                              ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-400"
-                                              : "border-white/20"
-                                          }`}
-                                        >
-                                          {task.status === "done" && (
-                                            <CheckSquare className="w-3 h-3" />
-                                          )}
-                                        </div>
-                                        <span
-                                          className={`text-sm font-medium truncate ${task.status === "done" ? "text-white/30 line-through" : "text-white/80"}`}
-                                        >
-                                          {task.title}
-                                        </span>
-                                      </div>
-                                      <div className="flex items-center gap-2">
-                                        {task.due_date &&
-                                          !task.completed_at && (
-                                            <Clock
-                                              className={`w-3 h-3 ${new Date(task.due_date) < new Date() ? "text-rose-400" : "text-white/20"}`}
-                                            />
-                                          )}
-                                        <span
-                                          className={`text-[8px] uppercase tracking-wider px-1.5 py-0.5 rounded ${
-                                            task.priority === 3
-                                              ? "bg-rose-500/10 text-rose-400"
-                                              : "bg-white/5 text-white/30"
-                                          }`}
-                                        >
-                                          P{task.priority}
-                                        </span>
-                                      </div>
-                                    </div>
-                                  ))
-                              ) : (
-                                <div className="py-8 flex flex-col items-center justify-center text-center space-y-2 opacity-30">
-                                  <Plus className="w-5 h-5" />
-                                  <p className="text-xs">Sin tareas activas</p>
-                                </div>
-                              )}
+                                      {task.status}
+                                    </span>
+                                  </div>
+                                ))}
                             </div>
                           </div>
                         ))
