@@ -99,6 +99,7 @@ export default function App() {
     null,
   );
   const [isPlanningNextWeek, setIsPlanningNextWeek] = useState(false);
+  const [kanbanPulse, setKanbanPulse] = useState(false);
   const [snoozeMeta, setSnoozeMeta] = useState<
     Record<string, { count: number; lastPreset: string; updatedAt: string }>
   >(() => {
@@ -136,6 +137,12 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem("flow-snooze-meta", JSON.stringify(snoozeMeta));
   }, [snoozeMeta]);
+
+  useEffect(() => {
+    if (!kanbanPulse) return;
+    const timer = setTimeout(() => setKanbanPulse(false), 900);
+    return () => clearTimeout(timer);
+  }, [kanbanPulse]);
 
   const fetchTasks = async () => {
     try {
@@ -335,6 +342,9 @@ export default function App() {
   const handleTaskDrop = async (id: string, zone: "hoy" | "luego") => {
     const newStatus = zone === "hoy" ? "todo" : "backlog";
     handleTaskStatusChange(id, newStatus);
+    if (zone === "hoy") {
+      setKanbanPulse(true);
+    }
   };
 
   const calculateSnoozeDate = (
@@ -718,6 +728,8 @@ export default function App() {
     },
   ];
 
+  const todayTasks = tasks.filter((t) => t.status === "todo");
+
   return (
     <div className="h-screen w-screen flex flex-col overflow-hidden bg-flow-bg">
       {/* Ambient Background Orbs */}
@@ -740,6 +752,7 @@ export default function App() {
           onClick={() => setView("kanban")}
           icon={<LayoutGrid />}
           label="Tablero"
+          highlight={kanbanPulse}
         />
         <NavButton
           active={view === "projects"}
@@ -799,6 +812,61 @@ export default function App() {
                   </p>
                 </div>
               )}
+
+              {/* Cajón de Hoy / Mi Día */}
+              <AnimatePresence>
+                {todayTasks.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20, scale: 0.97 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 20, scale: 0.97 }}
+                    className="fixed bottom-[4.5rem] right-8 z-30 glass rounded-2xl px-4 py-3 w-[280px] md:w-80 shadow-[0_18px_60px_rgba(0,0,0,0.55)]"
+                  >
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <div className="flex items-center gap-2">
+                        <div className="w-1.5 h-1.5 rounded-full bg-flow-accent shadow-[0_0_10px_rgba(59,130,246,0.9)]" />
+                        <p className="text-[11px] font-mono uppercase tracking-widest text-white/60">
+                          Mi Día
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setView("kanban")}
+                        className="text-[10px] font-mono uppercase tracking-widest text-flow-accent hover:text-white/90 bg-flow-accent/10 hover:bg-flow-accent/20 px-2 py-0.5 rounded-full transition-colors"
+                      >
+                        Ver Tablero
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-white/40 mb-2">
+                      {todayTasks.length}{" "}
+                      {todayTasks.length === 1 ? "tarea en Hoy" : "tareas en Hoy"}{" "}
+                      (se ven también en el tablero)
+                    </p>
+                    <div className="space-y-1 max-h-32 overflow-y-auto no-scrollbar">
+                      {todayTasks.slice(0, 4).map((task) => (
+                        <button
+                          key={task.id}
+                          onClick={() => setFocusedTask(task)}
+                          className="w-full text-left px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 transition-all group flex items-center justify-between gap-2"
+                        >
+                          <span className="text-[11px] text-white/80 truncate group-hover:text-flow-accent">
+                            {task.title}
+                          </span>
+                          {task.priority === 3 && (
+                            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-red-500/20 text-red-300 font-mono">
+                              P3
+                            </span>
+                          )}
+                        </button>
+                      ))}
+                      {todayTasks.length > 4 && (
+                        <p className="text-[10px] text-white/35 px-1">
+                          +{todayTasks.length - 4} más para hoy
+                        </p>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </motion.div>
           )}
 
@@ -1736,7 +1804,7 @@ export default function App() {
       />
 
       {/* Keyboard Hint */}
-      <div className="fixed bottom-6 right-8 text-white/20 text-xs font-mono flex items-center gap-2">
+      <div className="fixed bottom-6 right-8 text-white/20 text-xs font-mono flex items-center gap-2 z-20">
         <span className="px-1.5 py-0.5 rounded border border-white/10">
           CTRL
         </span>
@@ -1745,7 +1813,9 @@ export default function App() {
           ESPACIO
         </span>
         <span className="ml-2">o</span>
-        <span className="px-1.5 py-0.5 rounded border border-white/10">K</span>
+        <span className="px-1.5 py-0.5 rounded border border-white/10">
+          K
+        </span>
         <span className="ml-2">para capturar</span>
       </div>
     </div>
@@ -1757,18 +1827,37 @@ function NavButton({
   onClick,
   icon,
   label,
+  highlight = false,
 }: {
   active: boolean;
   onClick: () => void;
   icon: React.ReactNode;
   label: string;
+  highlight?: boolean;
 }) {
   return (
     <button
       onClick={onClick}
-      className={`p-3 rounded-full transition-all relative group ${active ? "bg-flow-accent text-white" : "text-white/40 hover:text-white hover:bg-white/5"}`}
+      className={`p-3 rounded-full transition-all relative group ${
+        active
+          ? "bg-flow-accent text-white"
+          : "text-white/40 hover:text-white hover:bg-white/5"
+      } ${
+        highlight && !active
+          ? "ring-2 ring-flow-accent/80 shadow-[0_0_22px_rgba(59,130,246,0.75)]"
+          : ""
+      }`}
     >
-      {icon}
+      <motion.div
+        animate={
+          highlight && !active
+            ? { scale: [1, 1.08, 1], rotate: [0, -4, 0] }
+            : { scale: 1, rotate: 0 }
+        }
+        transition={{ duration: 0.6 }}
+      >
+        {icon}
+      </motion.div>
       <span className="absolute left-full ml-4 px-2 py-1 rounded bg-white text-black text-[10px] font-bold uppercase tracking-wider opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
         {label}
       </span>
