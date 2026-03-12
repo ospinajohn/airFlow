@@ -11,7 +11,6 @@ Un gestor de tareas y proyectos generativo que combina la simplicidad del lengua
 </div>
 
 ---
-
 ## 🎯 ¿Qué es The Flow OS?
 
 **The Flow OS** es una aplicación de gestión de tareas y productividad que revoluciona la forma en que organizas tu trabajo. Olvídate de formularios complejos y interfaces rígidas: aquí solo escribes lo que necesitas hacer en lenguaje natural, y The Flow se encarga del resto.
