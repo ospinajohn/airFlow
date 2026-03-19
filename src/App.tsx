@@ -531,10 +531,10 @@ export default function App() {
       prev.map((task) =>
         candidates.some((candidate) => candidate.id === task.id)
           ? {
-              ...task,
-              status: "todo",
-              due_date: task.due_date || nextMonday.toISOString(),
-            }
+            ...task,
+            status: "todo",
+            due_date: task.due_date || nextMonday.toISOString(),
+          }
           : task,
       ),
     );
@@ -1086,7 +1086,7 @@ export default function App() {
                   <div className="w-72 rotate-1 scale-[1.02] shadow-2xl shadow-black/50">
                     <KanbanCard
                       task={activeTask}
-                      onClick={() => {}}
+                      onClick={() => { }}
                       projects={projects}
                     />
                   </div>
@@ -1188,21 +1188,19 @@ export default function App() {
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => setWeekStartsOn(1)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                        weekStartsOn === 1
-                          ? "bg-flow-accent text-white"
-                          : "bg-white/5 text-white/40 hover:text-white/70"
-                      }`}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${weekStartsOn === 1
+                        ? "bg-flow-accent text-white"
+                        : "bg-white/5 text-white/40 hover:text-white/70"
+                        }`}
                     >
                       Lunes
                     </button>
                     <button
                       onClick={() => setWeekStartsOn(0)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                        weekStartsOn === 0
-                          ? "bg-flow-accent text-white"
-                          : "bg-white/5 text-white/40 hover:text-white/70"
-                      }`}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${weekStartsOn === 0
+                        ? "bg-flow-accent text-white"
+                        : "bg-white/5 text-white/40 hover:text-white/70"
+                        }`}
                     >
                       Domingo
                     </button>
@@ -1323,11 +1321,10 @@ export default function App() {
                         setProjectDraft((prev) => ({ ...prev, color }))
                       }
                       disabled={isSavingProject}
-                      className={`w-7 h-7 rounded-full border-2 transition-all ${
-                        projectDraft.color === color
-                          ? "border-white scale-110"
-                          : "border-white/20 hover:border-white/60"
-                      }`}
+                      className={`w-7 h-7 rounded-full border-2 transition-all ${projectDraft.color === color
+                        ? "border-white scale-110"
+                        : "border-white/20 hover:border-white/60"
+                        }`}
                       style={{ backgroundColor: color }}
                       title={color}
                     />
@@ -1568,7 +1565,7 @@ export default function App() {
       />
 
       {/* Keyboard Hint */}
-      <div className="hidden md:flex fixed bottom-6 right-8 text-white/20 text-xs font-mono items-center gap-2 z-20">
+      {/* <div className="hidden md:flex fixed bottom-6 right-8 text-white/20 text-xs font-mono items-center gap-2 z-20">
         <span className="px-1.5 py-0.5 rounded border border-white/10">
           CTRL
         </span>
@@ -1581,7 +1578,42 @@ export default function App() {
           K
         </span>
         <span className="ml-2">para capturar</span>
-      </div>
+      </div> */}
+      <motion.div
+        className="hidden md:flex fixed bottom-6 right-8 items-center gap-1.5 z-20
+             px-3 py-1.5 rounded-full
+             bg-black/50 backdrop-blur-md
+             border border-white/[0.06]"
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 2, duration: 0.5, ease: "easeOut" }}
+      >
+        {[
+          { type: "key", label: "CTRL" },
+          { type: "sep", label: "+" },
+          { type: "key", label: "ESPACIO" },
+          { type: "sep", label: "o" },
+          { type: "key", label: "K" },
+        ].map((item, i) =>
+          item.type === "sep" ? (
+            <span key={i} className="text-white/20 text-xs font-mono px-0.5">
+              {item.label}
+            </span>
+          ) : (
+            <span
+              key={i}
+              className="px-1.5 py-0.5 rounded border border-white/[0.10] bg-white/[0.06]
+                   text-white/30 text-xs font-mono
+                   shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
+            >
+              {item.label}
+            </span>
+          )
+        )}
+        <span className="ml-1 text-white/20 text-xs font-mono">
+          para capturar
+        </span>
+      </motion.div>
     </div>
   );
 }
@@ -1602,15 +1634,13 @@ function NavButton({
   return (
     <button
       onClick={onClick}
-      className={`p-3 rounded-full transition-all relative group ${
-        active
-          ? "bg-flow-accent text-white"
-          : "text-white/40 hover:text-white hover:bg-white/5"
-      } ${
-        highlight && !active
+      className={`p-3 rounded-full transition-all relative group ${active
+        ? "bg-flow-accent text-white"
+        : "text-white/40 hover:text-white hover:bg-white/5"
+        } ${highlight && !active
           ? "ring-2 ring-flow-accent/80 shadow-[0_0_22px_rgba(59,130,246,0.75)]"
           : ""
-      }`}
+        }`}
     >
       <motion.div
         animate={
@@ -1723,16 +1753,14 @@ function KanbanColumn({
 
   return (
     <div
-      className={`flex-shrink-0 w-72 flex flex-col rounded-xl transition-colors duration-200 ${
-        highlighted && isDragging ? "bg-white/[0.03]" : ""
-      }`}
+      className={`flex-shrink-0 w-72 flex flex-col rounded-xl transition-colors duration-200 ${highlighted && isDragging ? "bg-white/[0.03]" : ""
+        }`}
     >
       {/* Column header - Notion style */}
       <div className="flex items-center gap-2 px-2 pb-3 mb-1">
         <div
-          className={`w-2.5 h-2.5 rounded-sm flex-shrink-0 transition-transform duration-200 ${
-            highlighted && isDragging ? "scale-125" : ""
-          }`}
+          className={`w-2.5 h-2.5 rounded-sm flex-shrink-0 transition-transform duration-200 ${highlighted && isDragging ? "scale-125" : ""
+            }`}
           style={{ backgroundColor: color }}
         />
         {getStatusIcon(id)}
@@ -1744,11 +1772,10 @@ function KanbanColumn({
         )}
         <button
           onClick={() => onToggleColumnSelect(taskIds)}
-          className={`p-1 rounded-md transition-all ${
-            allSelected
-              ? "text-flow-accent bg-flow-accent/10"
-              : "text-white/25 hover:text-white/60 hover:bg-white/5"
-          }`}
+          className={`p-1 rounded-md transition-all ${allSelected
+            ? "text-flow-accent bg-flow-accent/10"
+            : "text-white/25 hover:text-white/60 hover:bg-white/5"
+            }`}
           title={allSelected ? "Deseleccionar columna" : "Seleccionar columna"}
         >
           {allSelected ? (
@@ -1763,9 +1790,8 @@ function KanbanColumn({
           </span>
         )}
         <span
-          className={`text-[11px] font-mono ml-auto transition-colors duration-200 ${
-            highlighted && isDragging ? "text-white/50" : "text-white/25"
-          }`}
+          className={`text-[11px] font-mono ml-auto transition-colors duration-200 ${highlighted && isDragging ? "text-white/50" : "text-white/25"
+            }`}
         >
           {tasks.length}
         </span>
@@ -1774,13 +1800,12 @@ function KanbanColumn({
       {/* Cards container */}
       <div
         ref={setNodeRef}
-        className={`flex-1 space-y-2 min-h-[500px] pb-20 px-1 rounded-lg transition-all duration-200 ${
-          highlighted && isDragging
-            ? "ring-1 ring-white/10 bg-white/[0.02]"
-            : isDragging
-              ? "ring-1 ring-transparent"
-              : ""
-        }`}
+        className={`flex-1 space-y-2 min-h-[500px] pb-20 px-1 rounded-lg transition-all duration-200 ${highlighted && isDragging
+          ? "ring-1 ring-white/10 bg-white/[0.02]"
+          : isDragging
+            ? "ring-1 ring-transparent"
+            : ""
+          }`}
       >
         <SortableContext
           items={tasks.map((t) => t.id)}
@@ -1816,14 +1841,12 @@ function KanbanColumn({
         {/* Drop hint when dragging over empty column */}
         {tasks.length === 0 && isDragging && (
           <div
-            className={`flex items-center justify-center py-10 rounded-lg border border-dashed transition-all duration-200 ${
-              highlighted ? "border-white/20 bg-white/[0.03]" : "border-white/5"
-            }`}
+            className={`flex items-center justify-center py-10 rounded-lg border border-dashed transition-all duration-200 ${highlighted ? "border-white/20 bg-white/[0.03]" : "border-white/5"
+              }`}
           >
             <p
-              className={`text-[11px] transition-colors duration-200 ${
-                highlighted ? "text-white/40" : "text-white/10"
-              }`}
+              className={`text-[11px] transition-colors duration-200 ${highlighted ? "text-white/40" : "text-white/10"
+                }`}
             >
               Soltar aquí
             </p>
