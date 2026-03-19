@@ -39,6 +39,7 @@ import { FocusMode } from "./components/FocusMode";
 import { KanbanCard } from "./components/KanbanCard";
 import { CalendarView } from "./components/CalendarView";
 import { AnalyticsView } from "./components/AnalyticsView";
+import { ProjectView } from "./components/ProjectView";
 import { Task, Project, TaskStatus } from "./types";
 
 export default function App() {
@@ -740,7 +741,7 @@ export default function App() {
       </div>
 
       {/* Navigation Rail */}
-      <nav className="fixed left-6 top-1/2 -translate-y-1/2 z-40 flex flex-col gap-6 p-2 glass rounded-full">
+      <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 md:bottom-auto md:left-6 md:top-1/2 md:-translate-y-1/2 md:-translate-x-0 z-40 flex flex-row md:flex-col gap-2 md:gap-6 p-2 md:p-2 glass rounded-full overflow-x-auto w-[90vw] md:w-auto justify-between md:justify-center no-scrollbar">
         <NavButton
           active={view === "bubbles"}
           onClick={() => setView("bubbles")}
@@ -787,7 +788,7 @@ export default function App() {
               className="h-full w-full relative overflow-hidden"
             >
               {/* Drop Zones */}
-              <div className="absolute top-8 left-1/2 -translate-x-1/2 flex gap-8">
+              <div className="absolute top-20 md:top-8 left-1/2 -translate-x-1/2 flex gap-4 md:gap-8 z-10 scale-90 md:scale-100">
                 <DropZone label="Hoy" color="bg-emerald-500/10" />
                 <DropZone label="Luego" color="bg-amber-500/10" />
               </div>
@@ -820,7 +821,7 @@ export default function App() {
                     initial={{ opacity: 0, y: 20, scale: 0.97 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 20, scale: 0.97 }}
-                    className="fixed bottom-[4.5rem] right-8 z-30 glass rounded-2xl px-4 py-3 w-[280px] md:w-80 shadow-[0_18px_60px_rgba(0,0,0,0.55)]"
+                    className="fixed bottom-24 md:bottom-[4.5rem] right-4 md:right-8 z-30 glass rounded-2xl px-4 py-3 w-[calc(100vw-2rem)] md:w-80 shadow-[0_18px_60px_rgba(0,0,0,0.55)]"
                   >
                     <div className="flex items-center justify-between gap-2 mb-2">
                       <div className="flex items-center gap-2">
@@ -885,7 +886,7 @@ export default function App() {
                     initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 12 }}
-                    className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 glass rounded-2xl px-4 py-3 flex items-center gap-2 max-w-[calc(100vw-2rem)] overflow-x-auto no-scrollbar"
+                    className="fixed bottom-24 md:bottom-6 left-1/2 -translate-x-1/2 z-50 glass rounded-2xl px-4 py-3 flex items-center gap-2 max-w-[calc(100vw-2rem)] overflow-x-auto no-scrollbar shadow-[0_18px_60px_rgba(0,0,0,0.55)]"
                   >
                     <div className="flex items-center gap-2 pr-2 mr-2 border-r border-white/10">
                       <CheckSquare className="w-4 h-4 text-flow-accent" />
@@ -962,7 +963,7 @@ export default function App() {
               </AnimatePresence>
 
               {showKanbanHealthCheck && (
-                <div className="fixed top-6 right-8 z-40 w-64 glass rounded-2xl p-3 space-y-2">
+                <div className="hidden md:block fixed top-6 right-8 z-40 w-64 glass rounded-2xl p-3 space-y-2">
                   <div className="flex items-center justify-between">
                     <p className="text-[10px] font-mono uppercase tracking-widest text-white/35">
                       Health Check
@@ -998,7 +999,7 @@ export default function App() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 20 }}
-                className="h-full p-8 pl-24 overflow-x-auto flex gap-6 no-scrollbar"
+                className="h-full p-6 pt-24 md:pt-8 md:pl-24 pb-32 md:pb-8 overflow-x-auto flex gap-6 no-scrollbar"
               >
                 <KanbanColumn
                   id="backlog"
@@ -1095,255 +1096,18 @@ export default function App() {
           )}
 
           {view === "projects" && (
-            <motion.div
-              key="projects"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="h-full p-12 pl-24 overflow-y-auto no-scrollbar"
-            >
-              <div className="max-w-6xl mx-auto h-full flex flex-col">
-                <div className="flex items-center justify-between mb-12">
-                  <h2 className="text-3xl font-display font-bold">
-                    Mis Proyectos
-                  </h2>
-
-                  <div className="flex items-center gap-3">
-                    {/* View Switcher */}
-                    <div className="glass rounded-lg p-1 flex items-center gap-1">
-                      <button
-                        onClick={() => setProjectsViewMode("grid")}
-                        className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
-                          projectsViewMode === "grid"
-                            ? "bg-flow-accent text-white"
-                            : "text-white/50 hover:text-white/80"
-                        }`}
-                      >
-                        <LayoutGrid className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => setProjectsViewMode("calendar")}
-                        className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
-                          projectsViewMode === "calendar"
-                            ? "bg-flow-accent text-white"
-                            : "text-white/50 hover:text-white/80"
-                        }`}
-                      >
-                        <Calendar className="w-4 h-4" />
-                      </button>
-                    </div>
-
-                    <button
-                      className="flex items-center gap-2 px-4 py-2 rounded-xl bg-flow-accent text-white font-medium text-sm hover:shadow-lg transition-all active:scale-95"
-                      onClick={openCreateProjectModal}
-                    >
-                      <Plus className="w-4 h-4" />
-                      Nuevo Proyecto
-                    </button>
-                  </div>
-                </div>
-
-                <div className="mb-8 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                  {projectWorkload.map((item) => (
-                    <div
-                      key={item.id}
-                      className="glass rounded-xl p-4 space-y-3"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <div
-                            className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                            style={{ backgroundColor: item.color }}
-                          />
-                          <h4 className="text-sm font-semibold text-white/85 truncate">
-                            {item.name}
-                          </h4>
-                        </div>
-                        <span
-                          className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
-                            item.loadLevel === "high"
-                              ? "bg-red-500/20 text-red-300"
-                              : item.loadLevel === "medium"
-                                ? "bg-amber-500/20 text-amber-300"
-                                : "bg-emerald-500/20 text-emerald-300"
-                          }`}
-                        >
-                          {item.loadLevel === "high"
-                            ? "Alta carga"
-                            : item.loadLevel === "medium"
-                              ? "Carga media"
-                              : "Carga sana"}
-                        </span>
-                      </div>
-
-                      <div className="grid grid-cols-3 gap-2">
-                        <div className="rounded-lg bg-white/5 p-2">
-                          <p className="text-[10px] text-white/35 uppercase tracking-wider">
-                            Activas
-                          </p>
-                          <p className="text-lg font-display font-bold text-white/85">
-                            {item.active}
-                          </p>
-                        </div>
-                        <div className="rounded-lg bg-white/5 p-2">
-                          <p className="text-[10px] text-white/35 uppercase tracking-wider">
-                            Semana
-                          </p>
-                          <p className="text-lg font-display font-bold text-blue-300">
-                            {item.dueThisWeek}
-                          </p>
-                        </div>
-                        <div className="rounded-lg bg-white/5 p-2">
-                          <p className="text-[10px] text-white/35 uppercase tracking-wider">
-                            Vencidas
-                          </p>
-                          <p className="text-lg font-display font-bold text-rose-300">
-                            {item.overdue}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <AnimatePresence mode="wait">
-                  {projectsViewMode === "grid" ? (
-                    <motion.div
-                      key="grid-view"
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -20 }}
-                      className="grid grid-cols-1 md:grid-cols-2 gap-5 pb-32"
-                    >
-                      {projects.length > 0 ? (
-                        projects.map((project) => (
-                          <div
-                            key={project.id}
-                            className="glass rounded-2xl p-6 space-y-4"
-                          >
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2 min-w-0">
-                                <h3 className="text-sm font-mono uppercase tracking-widest text-white/40 truncate">
-                                  {project.name}
-                                </h3>
-                                <div
-                                  className="w-2 h-2 rounded-full flex-shrink-0"
-                                  style={{
-                                    backgroundColor: project.color || "#3b82f6",
-                                  }}
-                                />
-                              </div>
-                              <div className="flex items-center gap-1">
-                                <button
-                                  onClick={() => openEditProjectModal(project)}
-                                  className="px-2 py-1 text-[10px] rounded-md bg-white/5 hover:bg-white/10 text-white/55 hover:text-white/80"
-                                >
-                                  Editar
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteProject(project)}
-                                  className="px-2 py-1 text-[10px] rounded-md bg-red-500/10 hover:bg-red-500/20 text-red-300"
-                                >
-                                  Eliminar
-                                </button>
-                              </div>
-                            </div>
-                            <div className="space-y-2">
-                              {tasks
-                                .filter((t) => t.project_id === project.id)
-                                .map((task) => (
-                                  <div
-                                    key={task.id}
-                                    onClick={() => setFocusedTask(task)}
-                                    className="flex items-center justify-between p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-all cursor-pointer group"
-                                  >
-                                    <span className="text-sm font-medium group-hover:text-flow-accent">
-                                      {task.title}
-                                    </span>
-                                    <span
-                                      className={`text-[9px] px-2 py-0.5 rounded-full ${
-                                        task.status === "done"
-                                          ? "bg-emerald-500/20 text-emerald-400"
-                                          : "bg-white/10 text-white/40"
-                                      }`}
-                                    >
-                                      {task.status}
-                                    </span>
-                                  </div>
-                                ))}
-                            </div>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="glass rounded-2xl p-6 space-y-4 col-span-full">
-                          <div className="flex items-center justify-between gap-4 mb-2">
-                            <div>
-                              <h3 className="text-base font-semibold text-white/85">
-                                Aun no tienes proyectos
-                              </h3>
-                              <p className="text-xs text-white/40">
-                                Crea uno para organizar mejor tus tareas.
-                              </p>
-                            </div>
-                            <button
-                              onClick={openCreateProjectModal}
-                              className="px-3 py-2 rounded-lg bg-flow-accent text-white text-xs font-semibold hover:shadow-lg transition-all"
-                            >
-                              Crear proyecto
-                            </button>
-                          </div>
-                          <h3 className="text-sm font-mono uppercase tracking-widest text-white/40">
-                            Todas las Tareas
-                          </h3>
-                          <div className="space-y-2">
-                            {tasks.map((task) => (
-                              <div
-                                key={task.id}
-                                onClick={() => setFocusedTask(task)}
-                                className="flex items-center justify-between p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-all cursor-pointer group"
-                              >
-                                <span className="text-sm font-medium group-hover:text-flow-accent">
-                                  {task.title}
-                                </span>
-                                <div className="flex items-center gap-3">
-                                  {task.priority === 3 && (
-                                    <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
-                                  )}
-                                  <span
-                                    className={`text-[9px] px-2 py-0.5 rounded-full ${
-                                      task.status === "done"
-                                        ? "bg-emerald-500/20 text-emerald-400"
-                                        : "bg-white/10 text-white/40"
-                                    }`}
-                                  >
-                                    {task.status}
-                                  </span>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </motion.div>
-                  ) : (
-                    <motion.div
-                      key="calendar-view"
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -20 }}
-                      className="flex-1 pb-12"
-                    >
-                      <CalendarView
-                        tasks={tasks}
-                        projects={projects}
-                        onTaskClick={setFocusedTask}
-                        weekStartsOn={weekStartsOn}
-                      />
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            </motion.div>
+            <ProjectView
+              tasks={tasks}
+              projects={projects}
+              projectWorkload={projectWorkload}
+              projectsViewMode={projectsViewMode}
+              setProjectsViewMode={setProjectsViewMode}
+              openCreateProjectModal={openCreateProjectModal}
+              openEditProjectModal={openEditProjectModal}
+              handleDeleteProject={handleDeleteProject}
+              setFocusedTask={setFocusedTask}
+              weekStartsOn={weekStartsOn}
+            />
           )}
 
           {view === "analytics" && (
@@ -1378,7 +1142,7 @@ export default function App() {
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="w-full max-w-md glass rounded-2xl p-8 space-y-6"
+              className="w-full max-w-md glass rounded-2xl p-6 md:p-8 space-y-6 max-h-[90vh] overflow-y-auto no-scrollbar"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between">
@@ -1804,7 +1568,7 @@ export default function App() {
       />
 
       {/* Keyboard Hint */}
-      <div className="fixed bottom-6 right-8 text-white/20 text-xs font-mono flex items-center gap-2 z-20">
+      <div className="hidden md:flex fixed bottom-6 right-8 text-white/20 text-xs font-mono items-center gap-2 z-20">
         <span className="px-1.5 py-0.5 rounded border border-white/10">
           CTRL
         </span>
