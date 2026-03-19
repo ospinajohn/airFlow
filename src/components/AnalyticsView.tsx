@@ -140,9 +140,9 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ tasks, onPlanNextW
               <button
                 key={entryMode}
                 onClick={() => setMode(entryMode)}
-                className={`px-3 py-1.5 rounded-lg text-[11px] font-mono uppercase tracking-wider transition-all ${
+                className={`px-3 py-2 min-touch-target flex items-center justify-center rounded-lg text-[11px] font-mono uppercase tracking-wider transition-all ${
                   mode === entryMode
-                    ? 'bg-flow-accent text-white'
+                    ? 'bg-flow-accent text-white shadow-[0_0_15px_rgba(59,130,246,0.4)]'
                     : 'bg-white/5 text-white/45 hover:text-white/80 hover:bg-white/10'
                 }`}
               >
@@ -193,7 +193,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ tasks, onPlanNextW
 
         <div className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4 md:gap-6 pb-32">
           {/* Main Chart Column */}
-          <div className="md:col-span-2 lg:col-span-8 glass rounded-3xl p-6 flex flex-col space-y-4 h-[350px] lg:h-[420px] group border-transparent hover:border-white/10 transition-colors relative overflow-hidden shadow-xl">
+          <div className="md:col-span-2 lg:col-span-8 glass rounded-3xl p-6 flex flex-col space-y-4 min-h-[300px] lg:min-h-[350px] group border-transparent hover:border-white/10 transition-colors relative overflow-hidden shadow-xl">
             <div className="absolute top-0 right-0 w-64 h-64 bg-flow-accent/5 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
             <div className="flex items-center justify-between shrink-0 relative z-10">
               <h3 className="text-lg font-display font-bold text-white/90">Actividad Semanal</h3>
@@ -231,7 +231,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ tasks, onPlanNextW
           </div>
 
           {/* Insight Column */}
-          <div className="md:col-span-2 lg:col-span-4 glass rounded-3xl p-7 flex flex-col justify-between border-transparent hover:border-white/10 relative overflow-hidden group shadow-xl h-[350px] lg:h-[420px]">
+          <div className="md:col-span-2 lg:col-span-4 glass rounded-3xl p-7 flex flex-col justify-between border-transparent hover:border-white/10 relative overflow-hidden group shadow-xl min-h-[250px] lg:min-h-[350px]">
             <div className="absolute inset-0 bg-gradient-to-br from-white/[0.03] to-transparent pointer-events-none" />
             <div className="absolute top-0 right-0 p-6 opacity-20 group-hover:opacity-40 transition-opacity">
               <Flame className="w-24 h-24 text-flow-accent blur-xl" />

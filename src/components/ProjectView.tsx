@@ -58,28 +58,28 @@ export const ProjectView: React.FC<ProjectViewProps> = ({
             <div className="glass rounded-xl p-1.5 flex items-center gap-1 border border-white/5">
               <button
                 onClick={() => setProjectsViewMode("grid")}
-                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${
+                className={`px-4 py-2 min-touch-target flex items-center justify-center rounded-lg text-xs font-medium transition-all ${
                   projectsViewMode === "grid"
                     ? "bg-flow-accent/20 text-flow-accent shadow-[0_0_15px_rgba(59,130,246,0.2)]"
                     : "text-white/40 hover:text-white/80 hover:bg-white/5"
                 }`}
               >
-                <LayoutGrid className="w-4 h-4" />
+                <LayoutGrid className="w-5 h-5 md:w-4 md:h-4" />
               </button>
               <button
                 onClick={() => setProjectsViewMode("calendar")}
-                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${
+                className={`px-4 py-2 min-touch-target flex items-center justify-center rounded-lg text-xs font-medium transition-all ${
                   projectsViewMode === "calendar"
                     ? "bg-flow-accent/20 text-flow-accent shadow-[0_0_15px_rgba(59,130,246,0.2)]"
                     : "text-white/40 hover:text-white/80 hover:bg-white/5"
                 }`}
               >
-                <Calendar className="w-4 h-4" />
+                <Calendar className="w-5 h-5 md:w-4 md:h-4" />
               </button>
             </div>
 
             <button
-              className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-flow-accent text-white font-semibold text-sm hover:shadow-[0_0_20px_rgba(59,130,246,0.4)] transition-all active:scale-95"
+              className="flex items-center gap-2 px-5 py-2.5 min-touch-target rounded-2xl bg-flow-accent text-white font-semibold text-sm hover:shadow-[0_0_20px_rgba(59,130,246,0.4)] transition-all active:scale-95"
               onClick={openCreateProjectModal}
             >
               <Plus className="w-5 h-5" />
@@ -174,16 +174,16 @@ export const ProjectView: React.FC<ProjectViewProps> = ({
                         </h3>
                       </div>
                       
-                      <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex items-center gap-2 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
                           onClick={() => openEditProjectModal(project)}
-                          className="px-3 py-1.5 text-[10px] font-mono uppercase tracking-widest rounded-lg bg-white/5 hover:bg-white/10 text-white/60 hover:text-white"
+                          className="px-3 py-2 min-touch-target text-[10px] font-mono uppercase tracking-widest rounded-lg bg-white/5 hover:bg-white/10 text-white/60 hover:text-white transition-colors"
                         >
                           Edit
                         </button>
                         <button
                           onClick={() => handleDeleteProject(project)}
-                          className="px-3 py-1.5 text-[10px] font-mono uppercase tracking-widest rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400"
+                          className="px-3 py-2 min-touch-target text-[10px] font-mono uppercase tracking-widest rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 transition-colors"
                         >
                           Del
                         </button>

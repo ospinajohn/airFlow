@@ -777,7 +777,7 @@ export default function App() {
       </nav>
 
       {/* Main Content */}
-      <main className="flex-1 relative">
+      <main className="flex-1 relative min-h-0 min-w-0 scroll-smooth">
         <AnimatePresence mode="wait">
           {view === "bubbles" && (
             <motion.div

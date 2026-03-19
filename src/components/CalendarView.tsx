@@ -77,36 +77,36 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ tasks, projects, onT
           
           <button
             onClick={goToToday}
-            className="px-3 py-1.5 rounded-lg text-xs font-medium bg-white/5 hover:bg-white/10 text-white/60 hover:text-white/90 transition-all"
+            className="px-3 py-2 min-touch-target flex items-center justify-center rounded-lg text-xs font-medium bg-white/5 hover:bg-white/10 text-white/60 hover:text-white/90 transition-all font-mono uppercase tracking-widest"
           >
             Hoy
           </button>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2">
           <button
             onClick={previousMonth}
-            className="p-2 rounded-lg hover:bg-white/5 transition-all text-white/40 hover:text-white"
+            className="p-2 min-touch-target flex items-center justify-center rounded-lg hover:bg-white/5 transition-all text-white/40 hover:text-white"
           >
-            <ChevronLeft className="w-5 h-5" />
+            <ChevronLeft className="w-5 h-5 sm:w-5 sm:h-5" />
           </button>
           <button
             onClick={nextMonth}
-            className="p-2 rounded-lg hover:bg-white/5 transition-all text-white/40 hover:text-white"
+            className="p-2 min-touch-target flex items-center justify-center rounded-lg hover:bg-white/5 transition-all text-white/40 hover:text-white"
           >
-            <ChevronRight className="w-5 h-5" />
+            <ChevronRight className="w-5 h-5 sm:w-5 sm:h-5" />
           </button>
         </div>
       </div>
 
       {/* Calendar Grid */}
-      <div className="flex-1 glass rounded-2xl p-6 overflow-hidden flex flex-col">
+      <div className="flex-1 glass rounded-2xl p-3 sm:p-6 overflow-hidden flex flex-col">
         {/* Week Day Headers */}
-        <div className="grid grid-cols-7 gap-px mb-2">
+        <div className="grid grid-cols-7 gap-px mb-1 sm:mb-2">
           {weekDays.map((day) => (
             <div
               key={day}
-              className="text-center py-3 text-[10px] font-mono uppercase tracking-widest text-white/30"
+              className="text-center py-2 sm:py-3 text-[9px] sm:text-[10px] font-mono uppercase tracking-widest text-white/40"
             >
               {day}
             </div>
@@ -114,7 +114,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ tasks, projects, onT
         </div>
 
         {/* Calendar Days Grid */}
-        <div className="flex-1 grid grid-cols-7 grid-rows-6 gap-3 pt-2">
+        <div className="flex-1 grid grid-cols-7 grid-rows-6 gap-1 sm:gap-3 pt-1 sm:pt-2">
           <AnimatePresence mode="wait">
             {calendarDays.map((day, index) => {
               const dayTasks = getTasksForDay(day);
@@ -127,11 +127,11 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ tasks, projects, onT
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: index * 0.003 }}
-                  className={`relative p-1.5 sm:p-3 rounded-2xl flex flex-col gap-1 sm:gap-2 transition-all duration-300 border border-transparent ${
+                  className={`relative p-1 sm:p-3 rounded-xl sm:rounded-2xl flex flex-col gap-1 sm:gap-2 transition-all duration-300 border border-transparent ${
                     isCurrentMonth 
                       ? 'bg-white/[0.02] hover:bg-white/[0.06] hover:border-white/10 hover:shadow-xl hover:-translate-y-1' 
                       : 'opacity-10 pointer-events-none'
-                  } ${isDayToday ? 'ring-1 ring-flow-accent/30 bg-flow-accent/[0.02]' : ''}`}
+                  } ${isDayToday ? 'ring-2 ring-flow-accent/50 bg-flow-accent/[0.05] shadow-[0_0_20px_rgba(59,130,246,0.15)]' : ''}`}
                 >
                   {/* Glowing orbital on hover for days with tasks */}
                   {dayTasks.length > 0 && (
@@ -170,14 +170,14 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ tasks, projects, onT
                           animate={{ opacity: 1, x: 0 }}
                           transition={{ delay: 0.05 + idx * 0.02 }}
                           onClick={() => onTaskClick(task)}
-                          className="group w-full text-left px-2.5 py-1.5 rounded-lg text-[10px] font-semibold truncate transition-all duration-300 hover:scale-[1.03] active:scale-[0.98] flex items-center gap-2 border border-transparent hover:border-white/10"
+                          className="group w-full text-left px-1.5 py-1 sm:px-2.5 sm:py-1.5 rounded-md sm:rounded-lg text-[9px] sm:text-[10px] font-semibold truncate transition-all duration-300 hover:scale-[1.03] active:scale-[0.98] flex items-center justify-start gap-1 sm:gap-2 border border-transparent hover:border-white/10 min-h-[22px] sm:min-h-[28px]"
                           style={{
                             backgroundColor: `${projColor}1A`, // 10% opacity
                             color: projColor,
                           }}
                         >
-                          <div className="w-1 h-3 rounded-full shrink-0" style={{ backgroundColor: projColor }} />
-                          <span className="truncate group-hover:text-white transition-colors scale-90 sm:scale-100 origin-left">
+                          <div className="w-1 h-2 sm:h-3 rounded-full shrink-0" style={{ backgroundColor: projColor }} />
+                          <span className="truncate group-hover:text-white transition-colors">
                             {task.title}
                           </span>
                         </motion.button>
@@ -185,8 +185,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ tasks, projects, onT
                     })}
                     
                     {dayTasks.length > 3 && (
-                      <span className="text-[10px] font-mono text-white/40 px-2 py-0.5 mt-1 bg-white/5 rounded-md inline-block w-fit">
-                        +{dayTasks.length - 3} más
+                      <span className="text-[9px] sm:text-[10px] font-mono text-white/40 px-1 sm:px-2 py-0.5 mt-0.5 sm:mt-1 bg-white/5 rounded-md inline-block w-fit">
+                        +{dayTasks.length - 3}
                       </span>
                     )}
                   </div>
