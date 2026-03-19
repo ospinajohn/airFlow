@@ -149,7 +149,7 @@ export const ProjectView: React.FC<ProjectViewProps> = ({
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 pb-12"
+              className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 pb-4"
             >
               {projects.length > 0 ? (
                 projects.map((project) => (

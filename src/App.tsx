@@ -1113,10 +1113,10 @@ export default function App() {
           {view === "analytics" && (
             <motion.div
               key="analytics"
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="h-full p-12 pl-24 overflow-y-auto"
+              exit={{ opacity: 0, y: -10 }}
+              className="h-full w-full"
             >
               <AnalyticsView
                 tasks={tasks}

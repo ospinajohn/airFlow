@@ -191,7 +191,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ tasks, onPlanNextW
           />
         </div>
 
-        <div className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4 md:gap-6 pb-32">
+        <div className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4 md:gap-6 pb-6">
           {/* Main Chart Column */}
           <div className="md:col-span-2 lg:col-span-8 glass rounded-3xl p-6 flex flex-col space-y-4 min-h-[300px] lg:min-h-[350px] group border-transparent hover:border-white/10 transition-colors relative overflow-hidden shadow-xl">
             <div className="absolute top-0 right-0 w-64 h-64 bg-flow-accent/5 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
