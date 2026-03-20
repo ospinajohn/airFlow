@@ -100,10 +100,9 @@ async function startServer() {
   });
 
   app.post("/api/tasks", (req, res) => {
-    const { id, title, description, status, priority, due_date, project_id } =
-      req.body;
+    const { id, title, description, status, priority, due_date, project_id } = req.body;
     const stmt = db.prepare(
-      "INSERT INTO tasks (id, title, description, status, priority, due_date, project_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      "INSERT INTO tasks (id, title, description, status, priority, due_date, project_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
     );
     stmt.run(
       id,
@@ -113,6 +112,7 @@ async function startServer() {
       priority || 1,
       due_date,
       project_id,
+      new Date().toISOString(), // ← JS genera la fecha, no SQLite
     );
     res.status(201).json({ success: true });
   });

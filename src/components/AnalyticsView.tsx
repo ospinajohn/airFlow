@@ -43,17 +43,32 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
   }, [tasks, mode]);
 
   const dateForMode = (task: Task, selectedMode: AnalyticsMode): Date | null => {
+    const parseDate = (str: string): Date => {
+      if (!str) return new Date('invalid');
+      // Formato SQLite sin Z: "2026-03-19 05:23:11" → tratar como UTC añadiendo Z
+      if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(str)) {
+        return new Date(str.replace(' ', 'T') + 'Z');
+      }
+      // Solo fecha "2026-03-19" → construir local sin offset
+      if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
+        const [y, m, d] = str.split('-').map(Number);
+        return new Date(y, m - 1, d);
+      }
+      // ISO con Z u otro formato → dejar que JS maneje
+      return new Date(str);
+    };
+
     if (selectedMode === 'completed') {
-      if (task.completed_at) return new Date(task.completed_at);
-      if (task.status === 'done') return new Date(task.created_at);
+      if (task.completed_at) return parseDate(task.completed_at);
+      if (task.status === 'done') return parseDate(task.created_at);
       return null;
     }
     if (selectedMode === 'planned') {
-      if (task.due_date) return new Date(task.due_date);
-      if (task.status === 'todo' || task.status === 'doing') return new Date();
+      if (task.due_date) return parseDate(task.due_date);
+      if (task.status === 'todo' || task.status === 'doing') return parseDate(task.created_at);
       return null;
     }
-    return task.created_at ? new Date(task.created_at) : null;
+    return task.created_at ? parseDate(task.created_at) : null;
   };
 
   const last7Days: ChartPoint[] = useMemo(() => {
@@ -303,13 +318,11 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
                   Insight del día
                 </p>
 
-                {/* Ring + número */}
                 <div className="flex-1 flex flex-col items-center justify-center py-4 relative">
                   <InsightRing count={todayCount} goal={3} />
                   <p className="text-xs font-mono text-white/30 uppercase tracking-widest mt-4">
                     {MODE_LABELS[mode].toLowerCase()} hoy
                   </p>
-                  {/* Dots de progreso hacia el goal */}
                   <div className="flex items-center gap-2 mt-3">
                     {Array.from({ length: 3 }).map((_, i) => (
                       <motion.div
@@ -446,23 +459,18 @@ function MetricCard({
         borderColor: hovered ? `${accent}40` : 'rgba(255,255,255,0.04)',
       }}
     >
-      {/* Ambient glow desde esquina inferior derecha */}
       <motion.div
         className="absolute -bottom-8 -right-8 w-32 h-32 rounded-full pointer-events-none"
         style={{ backgroundColor: accent }}
         animate={{ opacity: hovered ? 0.07 : 0, scale: hovered ? 1.2 : 0.8 }}
         transition={{ duration: 0.4, ease: 'easeOut' }}
       />
-
-      {/* Línea superior de acento */}
       <motion.div
         className="absolute top-0 left-0 right-0 h-px pointer-events-none"
         style={{ backgroundColor: accent }}
         animate={{ opacity: hovered ? 0.4 : 0 }}
         transition={{ duration: 0.25 }}
       />
-
-      {/* Watermark con paralaje */}
       <motion.span
         className="absolute -right-2 -bottom-3 text-6xl font-display font-bold leading-none pointer-events-none select-none"
         style={{ color: accent }}
@@ -472,7 +480,6 @@ function MetricCard({
         {value}
       </motion.span>
 
-      {/* Header */}
       <div className="flex items-center justify-between mb-4 relative z-10">
         <motion.div
           className={`w-7 h-7 rounded-lg ${bgColor} flex items-center justify-center ${color}`}
@@ -490,7 +497,6 @@ function MetricCard({
         </motion.span>
       </div>
 
-      {/* Valor principal */}
       <div className="relative z-10">
         <motion.p
           key={String(value)}
@@ -531,7 +537,6 @@ function StatBox({ label, value, color }: { label: string; value: number | strin
   );
 }
 
-// Ring de progreso para el Insight del día
 function InsightRing({ count, goal }: { count: number; goal: number }) {
   const size = 120;
   const strokeWidth = 5;
@@ -544,7 +549,6 @@ function InsightRing({ count, goal }: { count: number; goal: number }) {
   return (
     <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
       <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
-        {/* Track */}
         <circle
           cx={size / 2}
           cy={size / 2}
@@ -553,7 +557,6 @@ function InsightRing({ count, goal }: { count: number; goal: number }) {
           stroke="rgba(255,255,255,0.05)"
           strokeWidth={strokeWidth}
         />
-        {/* Progress arc */}
         <motion.circle
           cx={size / 2}
           cy={size / 2}
@@ -573,7 +576,6 @@ function InsightRing({ count, goal }: { count: number; goal: number }) {
           }}
         />
       </svg>
-      {/* Número central */}
       <div className="absolute inset-0 flex items-center justify-center">
         <motion.span
           key={count}
@@ -581,10 +583,7 @@ function InsightRing({ count, goal }: { count: number; goal: number }) {
           animate={{ scale: 1, opacity: 1 }}
           transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
           className="font-display font-bold leading-none"
-          style={{
-            fontSize: 44,
-            color: isComplete ? '#10b981' : '#3b82f6',
-          }}
+          style={{ fontSize: 44, color: isComplete ? '#10b981' : '#3b82f6' }}
         >
           {count}
         </motion.span>
@@ -593,7 +592,6 @@ function InsightRing({ count, goal }: { count: number; goal: number }) {
   );
 }
 
-// Card Próximo Gran Hito con hover en barra
 function HitoCard({
   totalCompleted,
   progressPct,
@@ -618,7 +616,6 @@ function HitoCard({
         borderColor: hovered ? 'rgba(16,185,129,0.2)' : 'rgba(255,255,255,0.04)',
       }}
     >
-      {/* Watermark 50 */}
       <motion.span
         className="absolute -right-4 -bottom-6 text-[120px] font-display font-bold leading-none pointer-events-none select-none"
         animate={{ opacity: hovered ? 0.07 : 0.04, x: hovered ? -6 : 0, y: hovered ? -6 : 0 }}
@@ -627,16 +624,12 @@ function HitoCard({
       >
         50
       </motion.span>
-
-      {/* Glow desde esquina */}
       <motion.div
         className="absolute -bottom-10 -right-10 w-40 h-40 rounded-full pointer-events-none"
         style={{ backgroundColor: '#10b981' }}
         animate={{ opacity: hovered ? 0.06 : 0, scale: hovered ? 1.2 : 0.8 }}
         transition={{ duration: 0.4, ease: 'easeOut' }}
       />
-
-      {/* Línea top acento */}
       <motion.div
         className="absolute top-0 left-0 right-0 h-px pointer-events-none"
         style={{ backgroundColor: '#10b981' }}
@@ -678,9 +671,9 @@ function HitoCard({
         </motion.p>
       </div>
 
-      {/* Barra de progreso reactiva */}
       <div className="space-y-2 relative z-10">
-        <div className="w-full bg-white/[0.05] rounded-full overflow-hidden"
+        <div
+          className="w-full bg-white/[0.05] rounded-full overflow-hidden"
           style={{ height: hovered ? 6 : 4, transition: 'height 0.3s ease' }}
         >
           <motion.div
