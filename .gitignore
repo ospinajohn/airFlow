@@ -12,3 +12,5 @@ coverage/
 *.sqlite3
 .agents/
 docs/
+skills-lock.json
+.agents/skills/*
