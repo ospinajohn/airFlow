@@ -40,9 +40,10 @@ async function startServer() {
 
   // API Routes
   app.get("/api/tasks", (req, res) => {
+    // Devolvemos tareas activas + completadas en los últimos 7 días para analíticas precisas
     const tasks = db
       .prepare(
-        "SELECT * FROM tasks WHERE completed_at IS NULL OR completed_at > datetime('now', '-24 hours')",
+        "SELECT * FROM tasks WHERE completed_at IS NULL OR completed_at > datetime('now', '-7 days')",
       )
       .all();
     res.json(tasks);
@@ -60,8 +61,8 @@ async function startServer() {
             `SELECT COUNT(*) as count FROM tasks WHERE completed_at IS NOT NULL AND completed_at >= datetime('now', ? || ' days', 'start of day') AND completed_at < datetime('now', ? || ' days', 'start of day')`,
           )
           .get(startOffset.toString(), endOffset.toString()) as {
-          count: number;
-        };
+            count: number;
+          };
         const date = new Date();
         date.setDate(date.getDate() - i);
         stats.push({
