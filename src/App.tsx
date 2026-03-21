@@ -999,7 +999,7 @@ export default function App() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 20 }}
-                className="h-full flex flex-col gap-6 md:pl-24 pt-24 md:pt-8 pr-6 pb-32 md:pb-8"
+                className="h-full flex flex-col gap-6 md:pl-24 pt-24 md:pt-8 pr-6 pb-32 md:pb-14"
               >
                 {/* Kanban Header with View Switcher */}
                 <div className="flex items-center justify-between px-6 md:px-0">
