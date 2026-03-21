@@ -2,23 +2,36 @@ import * as chrono from 'chrono-node';
 import { NLPResult } from '../types';
 
 export function parseTaskInputLocally(input: string): NLPResult {
-  // Use Spanish locale for parsing
   const results = chrono.es.parse(input);
-  
+
   let dueDate: string | undefined;
   let title = input;
 
   if (results.length > 0) {
     const result = results[0];
     const date = result.start.date();
-    dueDate = date.toISOString();
-    
-    // Remove the date part from the title to keep it clean
-    // e.g., "Llamar a mamá mañana" -> "Llamar a mamá"
+
+    // Si chrono no detectó hora explícita, forzar las 9:00am
+    const hasExplicitTime = result.start.isCertain('hour');
+    if (!hasExplicitTime) {
+      date.setHours(9, 0, 0, 0);
+    }
+
+    // Guardar como "yyyy-MM-dd" si no tiene hora explícita
+    // o como ISO completo si la tiene — siempre en hora local
+    if (hasExplicitTime) {
+      // Construir ISO manualmente para preservar hora local sin offset UTC
+      const pad = (n: number) => n.toString().padStart(2, '0');
+      dueDate = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:00`;
+    } else {
+      // Solo fecha, sin hora → tu parseDate lo maneja bien
+      const pad = (n: number) => n.toString().padStart(2, '0');
+      dueDate = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+    }
+
     title = input.replace(result.text, '').trim();
   }
 
-  // Simple priority detection based on keywords
   let priority = 1;
   const lowerInput = input.toLowerCase();
   if (lowerInput.includes('urgente') || lowerInput.includes('importante') || lowerInput.includes('asap')) {

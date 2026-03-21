@@ -88,8 +88,8 @@ export default function App() {
     title: string;
   } | null>(null);
   const [isDeletingTask, setIsDeletingTask] = useState(false);
-  const [projectsViewMode, setProjectsViewMode] = useState<"grid" | "calendar">(
-    "grid",
+  const [kanbanViewMode, setKanbanViewMode] = useState<"kanban" | "calendar">(
+    "kanban",
   );
   const [weekStartsOn, setWeekStartsOn] = useState<0 | 1>(1); // 0 = Domingo, 1 = Lunes
 
@@ -995,78 +995,129 @@ export default function App() {
               )}
 
               <motion.div
-                key="kanban"
+                key="kanban-container"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 20 }}
-                className="h-full p-6 pt-24 md:pt-8 md:pl-24 pb-32 md:pb-8 overflow-x-auto flex gap-6 no-scrollbar"
+                className="h-full flex flex-col gap-6 md:pl-24 pt-24 md:pt-8 pr-6 pb-32 md:pb-8"
               >
-                <KanbanColumn
-                  id="backlog"
-                  title="Pendientes"
-                  subtitle="Luego"
-                  color="#6B7280"
-                  tasks={tasks.filter((t) => t.status === "backlog")}
-                  onTaskClick={setFocusedTask}
-                  onDelete={handleTaskDelete}
-                  projects={projects}
-                  isOver={overColumnId === "backlog"}
-                  isDragging={!!activeId}
-                  selectedTaskIds={selectedTaskIds}
-                  onToggleTaskSelect={toggleTaskSelection}
-                  onToggleColumnSelect={toggleColumnSelection}
-                  onSnoozeTask={handleSnoozeTask}
-                  snoozeMeta={snoozeMeta}
-                />
-                <KanbanColumn
-                  id="todo"
-                  title="Por Hacer"
-                  subtitle="Hoy"
-                  color="#3B82F6"
-                  tasks={tasks.filter((t) => t.status === "todo")}
-                  onTaskClick={setFocusedTask}
-                  onDelete={handleTaskDelete}
-                  projects={projects}
-                  isOver={overColumnId === "todo"}
-                  isDragging={!!activeId}
-                  selectedTaskIds={selectedTaskIds}
-                  onToggleTaskSelect={toggleTaskSelection}
-                  onToggleColumnSelect={toggleColumnSelection}
-                  onSnoozeTask={handleSnoozeTask}
-                  snoozeMeta={snoozeMeta}
-                />
-                <KanbanColumn
-                  id="doing"
-                  title="En Proceso"
-                  color="#F59E0B"
-                  tasks={tasks.filter((t) => t.status === "doing")}
-                  onTaskClick={setFocusedTask}
-                  onDelete={handleTaskDelete}
-                  projects={projects}
-                  isOver={overColumnId === "doing"}
-                  isDragging={!!activeId}
-                  selectedTaskIds={selectedTaskIds}
-                  onToggleTaskSelect={toggleTaskSelection}
-                  onToggleColumnSelect={toggleColumnSelection}
-                  onSnoozeTask={handleSnoozeTask}
-                  snoozeMeta={snoozeMeta}
-                />
-                <KanbanColumn
-                  id="done"
-                  title="Hecho"
-                  color="#10B981"
-                  tasks={tasks.filter((t) => t.status === "done")}
-                  onTaskClick={setFocusedTask}
-                  onDelete={handleTaskDelete}
-                  projects={projects}
-                  isOver={overColumnId === "done"}
-                  isDragging={!!activeId}
-                  selectedTaskIds={selectedTaskIds}
-                  onToggleTaskSelect={toggleTaskSelection}
-                  onToggleColumnSelect={toggleColumnSelection}
-                  onSnoozeTask={handleSnoozeTask}
-                  snoozeMeta={snoozeMeta}
-                />
+                {/* Kanban Header with View Switcher */}
+                <div className="flex items-center justify-between px-6 md:px-0">
+                  <div className="flex flex-col">
+                    <h2 className="text-2xl font-display font-bold text-white/90">Gestión de Flujo</h2>
+                    <p className="text-[10px] font-mono text-white/30 uppercase tracking-[0.2em]">Tablero & Temporalidad</p>
+                  </div>
+                  <div className="flex items-center gap-2 bg-white/[0.03] border border-white/[0.05] p-1 rounded-xl">
+                    <button
+                      onClick={() => setKanbanViewMode('kanban')}
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-mono uppercase tracking-widest transition-all ${kanbanViewMode === 'kanban' ? 'bg-flow-accent/20 text-flow-accent shadow-[0_0_15px_rgba(59,130,246,0.2)]' : 'text-white/30 hover:text-white/60'}`}
+                    >
+                      <LayoutGrid className="w-3.5 h-3.5" />
+                      Tablero
+                    </button>
+                    <button
+                      onClick={() => setKanbanViewMode('calendar')}
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-mono uppercase tracking-widest transition-all ${kanbanViewMode === 'calendar' ? 'bg-flow-accent/20 text-flow-accent shadow-[0_0_15px_rgba(59,130,246,0.2)]' : 'text-white/30 hover:text-white/60'}`}
+                    >
+                      <Calendar className="w-3.5 h-3.5" />
+                      Calendario
+                    </button>
+                  </div>
+                </div>
+
+                <AnimatePresence mode="wait">
+                  {kanbanViewMode === 'kanban' ? (
+                    <motion.div
+                      key="kanban-grid"
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: 10 }}
+                      className="flex-1 flex gap-6 overflow-x-auto no-scrollbar pb-4"
+                    >
+                      <KanbanColumn
+                        id="backlog"
+                        title="Pendientes"
+                        subtitle="Luego"
+                        color="#6B7280"
+                        tasks={tasks.filter((t) => t.status === "backlog")}
+                        onTaskClick={setFocusedTask}
+                        onDelete={handleTaskDelete}
+                        projects={projects}
+                        isOver={overColumnId === "backlog"}
+                        isDragging={!!activeId}
+                        selectedTaskIds={selectedTaskIds}
+                        onToggleTaskSelect={toggleTaskSelection}
+                        onToggleColumnSelect={toggleColumnSelection}
+                        onSnoozeTask={handleSnoozeTask}
+                        snoozeMeta={snoozeMeta}
+                      />
+                      <KanbanColumn
+                        id="todo"
+                        title="Por Hacer"
+                        subtitle="Hoy"
+                        color="#3B82F6"
+                        tasks={tasks.filter((t) => t.status === "todo")}
+                        onTaskClick={setFocusedTask}
+                        onDelete={handleTaskDelete}
+                        projects={projects}
+                        isOver={overColumnId === "todo"}
+                        isDragging={!!activeId}
+                        selectedTaskIds={selectedTaskIds}
+                        onToggleTaskSelect={toggleTaskSelection}
+                        onToggleColumnSelect={toggleColumnSelection}
+                        onSnoozeTask={handleSnoozeTask}
+                        snoozeMeta={snoozeMeta}
+                      />
+                      <KanbanColumn
+                        id="doing"
+                        title="En Proceso"
+                        color="#F59E0B"
+                        tasks={tasks.filter((t) => t.status === "doing")}
+                        onTaskClick={setFocusedTask}
+                        onDelete={handleTaskDelete}
+                        projects={projects}
+                        isOver={overColumnId === "doing"}
+                        isDragging={!!activeId}
+                        selectedTaskIds={selectedTaskIds}
+                        onToggleTaskSelect={toggleTaskSelection}
+                        onToggleColumnSelect={toggleColumnSelection}
+                        onSnoozeTask={handleSnoozeTask}
+                        snoozeMeta={snoozeMeta}
+                      />
+                      <KanbanColumn
+                        id="done"
+                        title="Hecho"
+                        color="#10B981"
+                        tasks={tasks.filter((t) => t.status === "done")}
+                        onTaskClick={setFocusedTask}
+                        onDelete={handleTaskDelete}
+                        projects={projects}
+                        isOver={overColumnId === "done"}
+                        isDragging={!!activeId}
+                        selectedTaskIds={selectedTaskIds}
+                        onToggleTaskSelect={toggleTaskSelection}
+                        onToggleColumnSelect={toggleColumnSelection}
+                        onSnoozeTask={handleSnoozeTask}
+                        snoozeMeta={snoozeMeta}
+                      />
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="calendar-view"
+                      initial={{ opacity: 0, x: 10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -10 }}
+                      className="flex-1 pb-4"
+                    >
+                      <CalendarView
+                        tasks={tasks}
+                        projects={projects}
+                        onTaskClick={setFocusedTask}
+                        weekStartsOn={weekStartsOn}
+                      />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </motion.div>
 
               <DragOverlay
@@ -1100,8 +1151,6 @@ export default function App() {
               tasks={tasks}
               projects={projects}
               projectWorkload={projectWorkload}
-              projectsViewMode={projectsViewMode}
-              setProjectsViewMode={setProjectsViewMode}
               openCreateProjectModal={openCreateProjectModal}
               openEditProjectModal={openEditProjectModal}
               handleDeleteProject={handleDeleteProject}

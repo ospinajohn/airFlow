@@ -6,7 +6,6 @@ import {
   TrendingUp, AlertTriangle, Edit2, Trash2,
 } from 'lucide-react';
 import { Task, Project } from '../types';
-import { CalendarView } from './CalendarView';
 import { format, isWithinInterval, startOfWeek, endOfWeek, isBefore } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -24,8 +23,6 @@ interface ProjectViewProps {
   tasks: Task[];
   projects: Project[];
   projectWorkload: ProjectWorkload[];
-  projectsViewMode: 'grid' | 'calendar';
-  setProjectsViewMode: (mode: 'grid' | 'calendar') => void;
   openCreateProjectModal: () => void;
   openEditProjectModal: (project: Project) => void;
   handleDeleteProject: (project: Project) => void;
@@ -37,8 +34,6 @@ export const ProjectView: React.FC<ProjectViewProps> = ({
   tasks,
   projects,
   projectWorkload,
-  projectsViewMode,
-  setProjectsViewMode,
   openCreateProjectModal,
   openEditProjectModal,
   handleDeleteProject,
@@ -79,8 +74,6 @@ export const ProjectView: React.FC<ProjectViewProps> = ({
             tasks={tasks}
             projects={projects}
             projectWorkload={projectWorkload}
-            projectsViewMode={projectsViewMode}
-            setProjectsViewMode={setProjectsViewMode}
             openCreateProjectModal={openCreateProjectModal}
             openEditProjectModal={openEditProjectModal}
             handleDeleteProject={handleDeleteProject}
@@ -100,10 +93,10 @@ export const ProjectView: React.FC<ProjectViewProps> = ({
 // ─── Project Grid ─────────────────────────────────────────────────────────────
 
 function ProjectGrid({
-  tasks, projects, projectWorkload, projectsViewMode, setProjectsViewMode,
+  tasks, projects, projectWorkload,
   openCreateProjectModal, openEditProjectModal, handleDeleteProject,
   setFocusedTask, weekStartsOn, totalActive, totalDone, totalOverdue, onSelectProject,
-}: ProjectViewProps & { totalActive: number; totalDone: number; totalOverdue: number; onSelectProject: (p: Project) => void }) {
+}: ProjectViewProps & { totalActive: number; totalDone: number; totalOverdue: number; onSelectProject: (p: Project) => void; key?: React.Key }) {
   return (
     <motion.div
       initial={{ opacity: 0, x: -24 }}
@@ -128,20 +121,6 @@ function ProjectGrid({
           </div>
         </div>
         <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
-          <div className="glass rounded-xl p-1 flex items-center gap-1 border border-white/[0.05]">
-            <button
-              onClick={() => setProjectsViewMode('grid')}
-              className={`px-3 py-2 rounded-lg text-xs transition-all ${projectsViewMode === 'grid' ? 'bg-flow-accent/20 text-flow-accent' : 'text-white/30 hover:text-white/60 hover:bg-white/5'}`}
-            >
-              <LayoutGrid className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => setProjectsViewMode('calendar')}
-              className={`px-3 py-2 rounded-lg text-xs transition-all ${projectsViewMode === 'calendar' ? 'bg-flow-accent/20 text-flow-accent' : 'text-white/30 hover:text-white/60 hover:bg-white/5'}`}
-            >
-              <Calendar className="w-4 h-4" />
-            </button>
-          </div>
           <button
             onClick={openCreateProjectModal}
             className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-flow-accent text-white font-semibold text-sm hover:shadow-[0_0_24px_rgba(59,130,246,0.4)] transition-all active:scale-95"
@@ -152,54 +131,45 @@ function ProjectGrid({
         </div>
       </div>
 
-      {/* Content */}
-      <AnimatePresence mode="wait">
-        {projectsViewMode === 'grid' ? (
-          <motion.div
-            key="grid"
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -16 }}
-            className="grid grid-cols-1 md:grid-cols-2 gap-5 pb-4"
-          >
-            {projects.length > 0 ? (
-              projects.map((project, index) => {
-                const projectTasks = tasks.filter((t) => t.project_id === project.id);
-                const done = projectTasks.filter((t) => t.status === 'done').length;
-                const total = projectTasks.length;
-                const pct = total > 0 ? Math.round((done / total) * 100) : 0;
-                const overdue = projectTasks.filter(
-                  (t) => t.status !== 'done' && t.due_date && isBefore(new Date(t.due_date), new Date()),
-                ).length;
-                const color = project.color || '#3b82f6';
-                return (
-                  <ProjectCard
-                    key={project.id}
-                    project={project}
-                    tasks={projectTasks}
-                    done={done}
-                    total={total}
-                    pct={pct}
-                    overdue={overdue}
-                    color={color}
-                    index={index}
-                    onEdit={(e) => { e.stopPropagation(); openEditProjectModal(project); }}
-                    onDelete={(e) => { e.stopPropagation(); handleDeleteProject(project); }}
-                    onTaskClick={setFocusedTask}
-                    onClick={() => onSelectProject(project)}
-                  />
-                );
-              })
-            ) : (
-              <EmptyState tasks={tasks} onCreateProject={openCreateProjectModal} onTaskClick={setFocusedTask} />
-            )}
-          </motion.div>
+      <motion.div
+        key="grid"
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -16 }}
+        className="grid grid-cols-1 md:grid-cols-2 gap-5 pb-4"
+      >
+        {projects.length > 0 ? (
+          projects.map((project, index) => {
+            const projectTasks = tasks.filter((t) => t.project_id === project.id);
+            const done = projectTasks.filter((t) => t.status === 'done').length;
+            const total = projectTasks.length;
+            const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+            const overdue = projectTasks.filter(
+              (t) => t.status !== 'done' && t.due_date && isBefore(new Date(t.due_date), new Date()),
+            ).length;
+            const color = project.color || '#3b82f6';
+            return (
+              <ProjectCard
+                key={project.id}
+                project={project}
+                tasks={projectTasks}
+                done={done}
+                total={total}
+                pct={pct}
+                overdue={overdue}
+                color={color}
+                index={index}
+                onEdit={(e) => { e.stopPropagation(); openEditProjectModal(project); }}
+                onDelete={(e) => { e.stopPropagation(); handleDeleteProject(project); }}
+                onTaskClick={setFocusedTask}
+                onClick={() => onSelectProject(project)}
+              />
+            );
+          })
         ) : (
-          <motion.div key="calendar" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -16 }} className="flex-1 pb-12">
-            <CalendarView tasks={tasks} projects={projects} onTaskClick={setFocusedTask} weekStartsOn={weekStartsOn} />
-          </motion.div>
+          <EmptyState tasks={tasks} onCreateProject={openCreateProjectModal} onTaskClick={setFocusedTask} />
         )}
-      </AnimatePresence>
+      </motion.div>
     </motion.div>
   );
 }
