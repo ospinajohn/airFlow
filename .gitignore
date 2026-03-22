@@ -1,16 +1,35 @@
+# Dependencies
 node_modules/
-build/
+**/node_modules/
+
+# Build outputs
 dist/
-coverage/
+**/dist/
+build/
+**/build/
+
+# IDE & OS
 .DS_Store
-.claude/settings.local.json
+.vscode/
+.idea/
 *.log
+
+# Environment variables
 .env*
 !.env.example
+**/ .env*
+
+# Database & Scaffolding
 *.db
 *.sqlite
 *.sqlite3
+backend/prisma/*.sqlite
+backend/prisma/*.db
+**/generated/prisma/
+
+# Antigravity & AI
 .agents/
 docs/
 skills-lock.json
 .agents/skills/*
+.claude/settings.local.json
