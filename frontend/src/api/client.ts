@@ -21,12 +21,16 @@ apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Opcional: Cerrar sesión automática si el token vence
-      localStorage.removeItem('airflow_user');
-      localStorage.removeItem('airflow_token');
-      window.location.href = '/login';
+      const isLoginAttempt = error.config?.url?.includes('/auth/login');
+
+      // Solo cerrar sesión automática si NO es un intento de login
+      if (!isLoginAttempt) {
+        localStorage.removeItem('airflow_user');
+        localStorage.removeItem('airflow_token');
+        window.location.href = '/login';
+      }
     }
-    return Promise.reject(error);
+    return Promise.reject(error); // ← ahora sí llega al catch del componente
   }
 );
 
