@@ -7,10 +7,19 @@ export class TasksService {
   constructor(private prisma: PrismaService) {}
 
   async findAll() {
-    return this.prisma.task.findMany({
+    const tasks = await this.prisma.task.findMany({
       include: { project: true },
       orderBy: { createdAt: 'desc' },
     });
+
+    if (tasks.length === 0) {
+      return {
+        message: 'No hay tareas disponibles en este momento.',
+        data: [],
+      };
+    }
+
+    return tasks;
   }
 
   async create(data: Prisma.TaskCreateInput) {

@@ -148,8 +148,10 @@ export default function App() {
   const fetchTasks = async () => {
     try {
       const res = await fetch("/api/tasks");
-      const data = await res.json();
-      setTasks(data);
+      const result = await res.json();
+      // Handle both pure array and structured response
+      const tasksData = Array.isArray(result) ? result : result.data || [];
+      setTasks(tasksData);
     } catch (err) {
       console.error(err);
     } finally {

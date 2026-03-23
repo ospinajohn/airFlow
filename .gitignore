@@ -33,3 +33,6 @@ docs/
 skills-lock.json
 .agents/skills/*
 .claude/settings.local.json
+
+backend/node_modules/
+backend/prisma/migrations/*
