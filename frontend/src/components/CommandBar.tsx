@@ -59,13 +59,11 @@ export const CommandBar: React.FC<CommandBarProps> = ({ onTaskCreated, projects 
     const inferredStatus = lowerInput.includes('hoy') ? 'todo' : quickStatus;
     
     onTaskCreated({
-      id: crypto.randomUUID(),
       title: parsed.title,
-      due_date: parsed.due_date,
+      dueDate: parsed.dueDate,
       priority: parsed.priority || 1,
       status: inferredStatus,
-      project_id: matchedProject?.id,
-      created_at: new Date().toISOString(),
+      projectId: matchedProject?.id,
     });
 
     setInput('');
@@ -134,7 +132,7 @@ export const CommandBar: React.FC<CommandBarProps> = ({ onTaskCreated, projects 
                 <span className="ml-auto text-[10px] text-white/25 font-mono">Ctrl/Cmd + K</span>
               </div>
 
-              {preview && preview.due_date && (
+              {preview && preview.dueDate && (
                 <motion.div 
                   initial={{ opacity: 0, y: 5 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -143,7 +141,7 @@ export const CommandBar: React.FC<CommandBarProps> = ({ onTaskCreated, projects 
                   <div className="w-1.5 h-1.5 rounded-full bg-flow-accent animate-pulse" />
                   <span>Se programará para: </span>
                   <span className="text-white/60 font-medium">
-                    {format(new Date(preview.due_date), "EEEE d 'de' MMMM, HH:mm", { locale: es })}
+                    {format(new Date(preview.dueDate), "EEEE d 'de' MMMM, HH:mm", { locale: es })}
                   </span>
                   {preview.priority === 3 && (
                     <span className="ml-auto px-2 py-0.5 rounded bg-red-500/20 text-red-400 text-[10px] font-bold uppercase tracking-wider">
@@ -153,7 +151,7 @@ export const CommandBar: React.FC<CommandBarProps> = ({ onTaskCreated, projects 
                 </motion.div>
               )}
 
-              {!preview?.due_date && input.trim().length > 0 && (
+              {!preview?.dueDate && input.trim().length > 0 && (
                 <motion.div
                   initial={{ opacity: 0, y: 5 }}
                   animate={{ opacity: 1, y: 0 }}

@@ -42,7 +42,7 @@ export function parseTaskInputLocally(input: string): NLPResult {
 
   return {
     title: title || input,
-    due_date: dueDate,
+    dueDate: dueDate,
     priority,
   };
 }

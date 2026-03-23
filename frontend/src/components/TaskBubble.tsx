@@ -19,9 +19,9 @@ export const TaskBubble: React.FC<BubbleProps> = ({ task, onComplete, onDelete, 
   const DRAG_DROP_THRESHOLD = 35;
 
   const getDueLabel = (): { text: string; overdue: boolean } | null => {
-    if (!task.due_date) return null;
+    if (!task.dueDate) return null;
     const now = new Date();
-    const due = new Date(task.due_date);
+    const due = new Date(task.dueDate);
     const isOverdue = due.getTime() < now.getTime();
     const time = due.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
 

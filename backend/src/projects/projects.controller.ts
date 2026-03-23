@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request } from '@nestjs/common';
 import { ProjectsService } from './projects.service';
-import { Prisma } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { CreateProjectDto, UpdateProjectDto } from './dto/project.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller('projects')
@@ -14,7 +14,7 @@ export class ProjectsController {
   }
 
   @Post()
-  create(@Request() req, @Body() createProjectDto: Prisma.ProjectCreateWithoutUserInput) {
+  create(@Request() req, @Body() createProjectDto: CreateProjectDto) {
     return this.projectsService.create({
       ...createProjectDto,
       user: { connect: { id: req.user.userId } },
@@ -22,7 +22,7 @@ export class ProjectsController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateProjectDto: Prisma.ProjectUpdateInput) {
+  update(@Param('id') id: string, @Body() updateProjectDto: UpdateProjectDto) {
     return this.projectsService.update(id, updateProjectDto);
   }
 

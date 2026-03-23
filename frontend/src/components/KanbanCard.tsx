@@ -84,20 +84,20 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({
   const [showSnoozeMenu, setShowSnoozeMenu] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
 
-  const project = projects.find((p) => p.id === task.project_id);
+  const project = projects.find((p) => p.id === task.projectId);
   const priority = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG[1];
   const statusColor = STATUS_COLORS[task.status] || STATUS_COLORS.backlog;
   const statusGlow = STATUS_GLOW[task.status] || STATUS_GLOW.backlog;
 
   useEffect(() => {
-    if (!task.due_date) {
+    if (!task.dueDate) {
       setTimeUntilDue(null);
       return;
     }
 
     const updateCountdown = () => {
       const now = new Date().getTime();
-      const due = new Date(task.due_date!).getTime();
+      const due = new Date(task.dueDate!).getTime();
       const diff = due - now;
 
       if (diff <= 0) {
@@ -121,7 +121,7 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({
     updateCountdown();
     const interval = setInterval(updateCountdown, 60000);
     return () => clearInterval(interval);
-  }, [task.due_date]);
+  }, [task.dueDate]);
 
   const isOverdue = timeUntilDue === "Vencido";
   const isAvoiding = snoozeCount >= 3;
@@ -414,7 +414,7 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({
           transition={{ duration: 0.2, delay: 0.03 }}
           className="flex items-center gap-2 mt-2.5 flex-wrap"
         >
-          {task.due_date && (
+          {task.dueDate && (
             <div
               className={`flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded-md transition-all duration-200 ${
                 isOverdue
@@ -426,7 +426,7 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({
             >
               <Calendar className="w-3 h-3" />
               <span>
-                {new Date(task.due_date).toLocaleDateString("es-ES", {
+                {new Date(task.dueDate).toLocaleDateString("es-ES", {
                   day: "numeric",
                   month: "short",
                 })}

@@ -44,7 +44,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   };
 
   const getTasksForDay = (day: Date) =>
-    tasks.filter((t) => t.due_date && isSameDay(parseDate(t.due_date), day));
+    tasks.filter((t) => t.dueDate && isSameDay(parseDate(t.dueDate), day));
 
   const getProjectColor = (id?: string) =>
     id ? (projects.find((p) => p.id === id)?.color || '#3b82f6') : '#3b82f6';
@@ -70,17 +70,17 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   const monthEnd = endOfMonth(currentDate);
 
   const overdueTasks = tasks.filter(
-    (t) => t.status !== 'done' && t.due_date && isBefore(parseDate(t.due_date), new Date()),
+    (t) => t.status !== 'done' && t.dueDate && isBefore(parseDate(t.dueDate), new Date()),
   );
   const weekTasksAll = tasks.filter((t) => {
-    if (!t.due_date) return false;
-    return isWithinInterval(parseDate(t.due_date), { start: weekStart, end: weekEnd });
+    if (!t.dueDate) return false;
+    return isWithinInterval(parseDate(t.dueDate), { start: weekStart, end: weekEnd });
   });
   const monthTasksAll = tasks.filter((t) => {
-    if (!t.due_date) return false;
-    return isWithinInterval(parseDate(t.due_date), { start: monthStart, end: monthEnd });
+    if (!t.dueDate) return false;
+    return isWithinInterval(parseDate(t.dueDate), { start: monthStart, end: monthEnd });
   });
-  const unscheduled = tasks.filter((t) => !t.due_date && t.status !== 'done');
+  const unscheduled = tasks.filter((t) => !t.dueDate && t.status !== 'done');
 
   // ── Navigation ────────────────────────────────────────────────────────────
 
@@ -257,7 +257,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
           ))}
         </div>
         <span className="text-[11px] font-mono text-white/25 hidden sm:block">
-          {tasks.filter((t) => t.due_date).length} programadas en total
+          {tasks.filter((t) => t.dueDate).length} programadas en total
         </span>
       </div>
     </div>
@@ -341,8 +341,8 @@ function WeekView({
                 </div>
               ) : (
                 dayTasks.map((task, ti) => {
-                  const color = getProjectColor(task.project_id);
-                  const projName = getProjectName(task.project_id);
+                  const color = getProjectColor(task.projectId);
+                  const projName = getProjectName(task.projectId);
                   const isDone = task.status === 'done';
                   return (
                     <motion.button
@@ -497,7 +497,7 @@ function MonthView({
                 {/* Pills */}
                 <div className="flex flex-col gap-0.5 overflow-hidden flex-1">
                   {dayTasks.slice(0, 3).map((task) => {
-                    const color = getProjectColor(task.project_id);
+                    const color = getProjectColor(task.projectId);
                     const isDone = task.status === 'done';
                     return (
                       <motion.button
@@ -539,8 +539,8 @@ function MonthView({
                     </p>
                     <div className="space-y-2">
                       {dayTasks.map((task) => {
-                        const color = getProjectColor(task.project_id);
-                        const projName = getProjectName(task.project_id);
+                        const color = getProjectColor(task.projectId);
+                        const projName = getProjectName(task.projectId);
                         return (
                           <div key={task.id} className="flex items-start gap-2">
                             <div className="w-1.5 h-1.5 rounded-full mt-1 shrink-0" style={{ backgroundColor: color }} />

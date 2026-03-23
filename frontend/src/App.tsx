@@ -42,7 +42,13 @@ import { AnalyticsView } from "./components/AnalyticsView";
 import { ProjectView } from "./components/ProjectView";
 import { Task, Project, TaskStatus } from "./types";
 
-export default function App() {
+// 🔐 Auth Imports
+import { AuthProvider, useAuth } from "./context/AuthContext";
+import { LoginPage } from "./components/auth/LoginPage";
+import { RegisterPage } from "./components/auth/RegisterPage";
+import apiClient from "./api/client";
+
+function Dashboard() {
   const PROJECT_COLORS = [
     "#3b82f6",
     "#10b981",
@@ -123,6 +129,8 @@ export default function App() {
     }),
   );
 
+  const { logout } = useAuth();
+
   useEffect(() => {
     fetchTasks();
     fetchProjects();
@@ -147,10 +155,8 @@ export default function App() {
 
   const fetchTasks = async () => {
     try {
-      const res = await fetch("/api/tasks");
-      const result = await res.json();
-      // Handle both pure array and structured response
-      const tasksData = Array.isArray(result) ? result : result.data || [];
+      const { data } = await apiClient.get("/tasks");
+      const tasksData = Array.isArray(data) ? data : data.data || [];
       setTasks(tasksData);
     } catch (err) {
       console.error(err);
@@ -161,8 +167,7 @@ export default function App() {
 
   const fetchProjects = async () => {
     try {
-      const res = await fetch("/api/projects");
-      const data = await res.json();
+      const { data } = await apiClient.get("/projects");
       setProjects(data);
     } catch (err) {
       console.error(err);
@@ -200,35 +205,19 @@ export default function App() {
     try {
       const endpoint =
         projectModalMode === "create"
-          ? "/api/projects"
-          : `/api/projects/${projectDraft.id}`;
-      const method = projectModalMode === "create" ? "POST" : "PATCH";
-
-      const res = await fetch(endpoint, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: trimmedName,
-          color: projectDraft.color,
-        }),
-      });
-
-      const contentType = res.headers.get("content-type");
-      let data: any = {};
-      if (contentType && contentType.includes("application/json")) {
-        data = await res.json();
-      }
-
-      if (!res.ok) {
-        setProjectFormError(data?.error || "No se pudo guardar el proyecto.");
-        return;
+          ? "/projects"
+          : `/projects/${projectDraft.id}`;
+      
+      if (projectModalMode === "create") {
+        await apiClient.post(endpoint, { name: trimmedName, color: projectDraft.color });
+      } else {
+        await apiClient.patch(endpoint, { name: trimmedName, color: projectDraft.color });
       }
 
       await fetchProjects();
       setShowProjectModal(false);
-    } catch (err) {
-      console.error(err);
-      setProjectFormError("Error inesperado al guardar el proyecto.");
+    } catch (err: any) {
+      setProjectFormError(err.response?.data?.message || "No se pudo guardar el proyecto.");
     } finally {
       setIsSavingProject(false);
     }
@@ -243,13 +232,7 @@ export default function App() {
     setIsDeletingProject(true);
 
     try {
-      const res = await fetch(`/api/projects/${projectToDelete.id}`, {
-        method: "DELETE",
-      });
-      if (!res.ok) {
-        throw new Error("No se pudo eliminar el proyecto");
-      }
-
+      await apiClient.delete(`/projects/${projectToDelete.id}`);
       await Promise.all([fetchProjects(), fetchTasks()]);
       setProjectToDelete(null);
     } catch (err) {
@@ -261,11 +244,7 @@ export default function App() {
 
   const handleTaskCreated = async (taskData: Partial<Task>) => {
     try {
-      await fetch("/api/tasks", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(taskData),
-      });
+      await apiClient.post("/tasks", taskData);
       fetchTasks();
     } catch (err) {
       console.error(err);
@@ -273,36 +252,26 @@ export default function App() {
   };
 
   const handleTaskStatusChange = async (id: string, newStatus: TaskStatus) => {
-    // Optimistic update
     setTasks((prev) =>
       prev.map((t) => (t.id === id ? { ...t, status: newStatus } : t)),
     );
 
     try {
-      await fetch(`/api/tasks/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus }),
-      });
+      await apiClient.patch(`/tasks/${id}`, { status: newStatus });
       fetchTasks();
     } catch (err) {
       console.error(err);
-      fetchTasks(); // Rollback on error
+      fetchTasks();
     }
   };
 
   const handleUpdateTask = async (id: string, updates: Partial<Task>) => {
-    // Optimistic update
     setTasks((prev) =>
       prev.map((t) => (t.id === id ? { ...t, ...updates } : t)),
     );
 
     try {
-      await fetch(`/api/tasks/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updates),
-      });
+      await apiClient.patch(`/tasks/${id}`, updates);
       fetchTasks();
     } catch (err) {
       console.error(err);
@@ -327,9 +296,7 @@ export default function App() {
 
     setIsDeletingTask(true);
     try {
-      await fetch(`/api/tasks/${taskToDelete.id}`, {
-        method: "DELETE",
-      });
+      await apiClient.delete(`/tasks/${taskToDelete.id}`);
       fetchTasks();
       if (focusedTask?.id === taskToDelete.id) {
         setFocusedTask(null);
@@ -384,7 +351,7 @@ export default function App() {
 
     setTasks((prev) =>
       prev.map((task) =>
-        task.id === id ? { ...task, due_date: dueDate } : task,
+        task.id === id ? { ...task, dueDate: dueDate } : task,
       ),
     );
     setSnoozeMeta((prev) => ({
@@ -397,11 +364,7 @@ export default function App() {
     }));
 
     try {
-      await fetch(`/api/tasks/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ due_date: dueDate }),
-      });
+      await apiClient.patch(`/tasks/${id}`, { dueDate: dueDate });
       await fetchTasks();
     } catch (err) {
       console.error(err);
@@ -461,21 +424,9 @@ export default function App() {
     if (selectedTaskIds.length === 0) return;
 
     setIsBulkUpdating(true);
-    setTasks((prev) =>
-      prev.map((task) =>
-        selectedTaskIds.includes(task.id) ? { ...task, ...updates } : task,
-      ),
-    );
-
     try {
       await Promise.all(
-        selectedTaskIds.map((id) =>
-          fetch(`/api/tasks/${id}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(updates),
-          }),
-        ),
+        selectedTaskIds.map((id) => apiClient.patch(`/tasks/${id}`, updates)),
       );
       await fetchTasks();
       clearTaskSelection();
@@ -493,11 +444,7 @@ export default function App() {
 
     try {
       await Promise.all(
-        selectedTaskIds.map((id) =>
-          fetch(`/api/tasks/${id}`, {
-            method: "DELETE",
-          }),
-        ),
+        selectedTaskIds.map((id) => apiClient.delete(`/tasks/${id}`)),
       );
       await fetchTasks();
       clearTaskSelection();
@@ -515,7 +462,7 @@ export default function App() {
       .sort(
         (a, b) =>
           b.priority - a.priority ||
-          new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
       )
       .slice(0, 3);
 
@@ -529,28 +476,12 @@ export default function App() {
     nextMonday.setHours(9, 0, 0, 0);
 
     setIsPlanningNextWeek(true);
-    setTasks((prev) =>
-      prev.map((task) =>
-        candidates.some((candidate) => candidate.id === task.id)
-          ? {
-            ...task,
-            status: "todo",
-            due_date: task.due_date || nextMonday.toISOString(),
-          }
-          : task,
-      ),
-    );
-
     try {
       await Promise.all(
         candidates.map((task) =>
-          fetch(`/api/tasks/${task.id}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              status: "todo",
-              due_date: task.due_date || nextMonday.toISOString(),
-            }),
+          apiClient.patch(`/tasks/${task.id}`, {
+            status: "todo",
+            dueDate: task.dueDate || nextMonday.toISOString(),
           }),
         ),
       );
@@ -621,14 +552,14 @@ export default function App() {
   const overdueTasks = tasks.filter(
     (t) =>
       t.status !== "done" &&
-      t.due_date &&
-      new Date(t.due_date).getTime() < nowMs,
+      t.dueDate &&
+      new Date(t.dueDate).getTime() < nowMs,
   );
   const noDateTasks = tasks.filter(
-    (t) => (t.status === "todo" || t.status === "doing") && !t.due_date,
+    (t) => (t.status === "todo" || t.status === "doing") && !t.dueDate,
   );
   const staleTasks = doingTasks.filter((t) => {
-    const createdAt = new Date(t.created_at).getTime();
+    const createdAt = new Date(t.createdAt).getTime();
     if (Number.isNaN(createdAt)) return false;
     return nowMs - createdAt > 1000 * 60 * 60 * 24 * 3;
   });
@@ -672,19 +603,19 @@ export default function App() {
     projects.length > 0 ? projects : [{ id: "none", name: "Sin proyecto" }]
   ).map((project) => {
     const scopedTasks = tasks.filter((task) => {
-      if (project.id === "none") return !task.project_id;
-      return task.project_id === project.id;
+      if (project.id === "none") return !task.projectId;
+      return task.projectId === project.id;
     });
 
     const active = scopedTasks.filter((task) => task.status !== "done").length;
     const dueThisWeek = scopedTasks.filter((task) => {
-      if (!task.due_date || task.status === "done") return false;
-      const dueMs = new Date(task.due_date).getTime();
+      if (!task.dueDate || task.status === "done") return false;
+      const dueMs = new Date(task.dueDate).getTime();
       return dueMs >= nowMs && dueMs <= weekAhead;
     }).length;
     const overdue = scopedTasks.filter((task) => {
-      if (!task.due_date || task.status === "done") return false;
-      return new Date(task.due_date).getTime() < nowMs;
+      if (!task.dueDate || task.status === "done") return false;
+      return new Date(task.dueDate).getTime() < nowMs;
     }).length;
 
     const loadLevel = active > 8 ? "high" : active > 4 ? "medium" : "low";
@@ -769,12 +700,18 @@ export default function App() {
           icon={<BarChart3 />}
           label="Estadísticas"
         />
-        <div className="w-8 h-px bg-white/10 mx-auto my-2" />
         <NavButton
           active={showSettings}
           onClick={() => setShowSettings(true)}
           icon={<Settings />}
           label="Ajustes"
+        />
+        <div className="w-8 h-px bg-white/10 mx-auto my-2" />
+        <NavButton
+          active={false}
+          onClick={logout}
+          icon={<List className="rotate-180" />}
+          label="Cerrar Sesión"
         />
       </nav>
 
@@ -916,7 +853,7 @@ export default function App() {
                       onClick={() =>
                         bulkUpdateSelected({
                           status: "done",
-                          completed_at: new Date().toISOString(),
+                          completedAt: new Date().toISOString(),
                         })
                       }
                       className="px-2.5 py-1 rounded-md bg-emerald-500/20 hover:bg-emerald-500/30 text-[11px] text-emerald-300 disabled:opacity-40"
@@ -935,7 +872,7 @@ export default function App() {
                       disabled={isBulkUpdating}
                       onClick={() =>
                         bulkUpdateSelected({
-                          due_date: new Date(
+                          dueDate: new Date(
                             Date.now() + 24 * 60 * 60 * 1000,
                           ).toISOString(),
                         })
@@ -1667,6 +1604,38 @@ export default function App() {
       </motion.div>
     </div>
   );
+}
+
+// 🌐 Auth Entry Point
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
+  );
+}
+
+function AppContent() {
+  const { isAuthenticated, loading } = useAuth();
+  const [authMode, setAuthMode] = useState<"login" | "register">("login");
+
+  if (loading) {
+    return (
+      <div className="h-screen w-screen flex items-center justify-center bg-flow-bg">
+        <div className="w-12 h-12 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return authMode === "login" ? (
+      <LoginPage onSwitchAction={() => setAuthMode("register")} />
+    ) : (
+      <RegisterPage onSwitchAction={() => setAuthMode("login")} />
+    );
+  }
+
+  return <Dashboard />;
 }
 
 function NavButton({

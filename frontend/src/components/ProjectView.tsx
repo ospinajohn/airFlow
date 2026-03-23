@@ -60,14 +60,14 @@ export const ProjectView: React.FC<ProjectViewProps> = ({
 
   const selected = projects.find((p) => p.id === selectedId) ?? null;
   const selectedTasks = useMemo(
-    () => tasks.filter((t) => t.project_id === selectedId),
+    () => tasks.filter((t) => t.projectId === selectedId),
     [tasks, selectedId],
   );
 
   const totalActive = tasks.filter((t) => t.status !== 'done').length;
   const totalDone = tasks.filter((t) => t.status === 'done').length;
   const totalOverdue = tasks.filter(
-    (t) => t.status !== 'done' && t.due_date && isBefore(new Date(t.due_date), new Date()),
+    (t) => t.status !== 'done' && t.dueDate && isBefore(new Date(t.dueDate), new Date()),
   ).length;
 
   return (
@@ -115,11 +115,11 @@ export const ProjectView: React.FC<ProjectViewProps> = ({
               {projects.length} {projects.length === 1 ? 'proyecto' : 'proyectos'}
             </p>
             {projects.map((project) => {
-              const ptasks = tasks.filter((t) => t.project_id === project.id);
+              const ptasks = tasks.filter((t) => t.projectId === project.id);
               const pdone = ptasks.filter((t) => t.status === 'done').length;
               const ppct = ptasks.length > 0 ? Math.round((pdone / ptasks.length) * 100) : 0;
               const pOverdue = ptasks.filter(
-                (t) => t.status !== 'done' && t.due_date && isBefore(new Date(t.due_date), new Date()),
+                (t) => t.status !== 'done' && t.dueDate && isBefore(new Date(t.dueDate), new Date()),
               ).length;
               const isActive = selectedId === project.id;
               const color = project.color || '#3b82f6';
@@ -226,16 +226,16 @@ function DetailPanel({
   const active = total - done;
   const pct = total > 0 ? Math.round((done / total) * 100) : 0;
   const overdue = tasks.filter(
-    (t) => t.status !== 'done' && t.due_date && isBefore(new Date(t.due_date), new Date()),
+    (t) => t.status !== 'done' && t.dueDate && isBefore(new Date(t.dueDate), new Date()),
   );
   const velocity = byStatus.done.filter((t) => {
-    if (!t.completed_at) return false;
-    return isWithinInterval(new Date(t.completed_at), { start: weekStart, end: weekEnd });
+    if (!t.completedAt) return false;
+    return isWithinInterval(new Date(t.completedAt), { start: weekStart, end: weekEnd });
   }).length;
 
   const recentDone = [...byStatus.done]
-    .filter((t) => t.completed_at)
-    .sort((a, b) => new Date(b.completed_at!).getTime() - new Date(a.completed_at!).getTime())
+    .filter((t) => t.completedAt)
+    .sort((a, b) => new Date(b.completedAt!).getTime() - new Date(a.completedAt!).getTime())
     .slice(0, 4);
 
   const health = overdue.length > 3 ? 'risk'
@@ -435,9 +435,9 @@ function DetailPanel({
                   <span className="text-[11px] text-white/45 hover:text-white/70 truncate transition-colors">
                     {task.title}
                   </span>
-                  {task.due_date && (
+                  {task.dueDate && (
                     <span className="text-[9px] font-mono text-red-400/40 ml-2 shrink-0">
-                      {format(new Date(task.due_date), 'd MMM', { locale: es })}
+                      {format(new Date(task.dueDate), 'd MMM', { locale: es })}
                     </span>
                   )}
                 </motion.div>
@@ -475,9 +475,9 @@ function DetailPanel({
                     <p className="text-[11px] text-white/40 group-hover:text-white/65 transition-colors truncate">
                       {task.title}
                     </p>
-                    {task.completed_at && (
+                    {task.completedAt && (
                       <p className="text-[9px] font-mono text-white/15 mt-0.5">
-                        {format(new Date(task.completed_at), "d MMM · HH:mm", { locale: es })}
+                        {format(new Date(task.completedAt), "d MMM · HH:mm", { locale: es })}
                       </p>
                     )}
                   </div>
@@ -534,8 +534,8 @@ function DetailPanel({
 function TaskRow({ task, color, onClick }: {
   task: Task; color: string; onClick: () => void;
 }) {
-  const isOverdue = task.due_date
-    && isBefore(new Date(task.due_date), new Date())
+  const isOverdue = task.dueDate
+    && isBefore(new Date(task.dueDate), new Date())
     && task.status !== 'done';
 
   return (

@@ -283,9 +283,9 @@ export const FocusMode: React.FC<FocusModeProps> = ({
       setLastTaskId(task.id);
       setEditedTitle(task.title);
       setEditedPriority(task.priority || 1);
-      setEditedDate(task.due_date ? task.due_date.split('T')[0] : '');
+      setEditedDate(task.dueDate ? task.dueDate.split('T')[0] : '');
       setEditedDescription(task.description || '');
-      setEditedProjectId(task.project_id);
+      setEditedProjectId(task.projectId);
       setIsEditing(false);
     }
   }, [task?.id, lastTaskId, task]);
@@ -313,9 +313,9 @@ export const FocusMode: React.FC<FocusModeProps> = ({
       await onUpdate(task.id, {
         title: editedTitle,
         priority: editedPriority,
-        due_date: editedDate || undefined,
+        dueDate: editedDate || undefined,
         description: editedDescription,
-        project_id: editedProjectId,
+        projectId: editedProjectId,
       });
       await new Promise((r) => setTimeout(r, 600));
       setIsEditing(false);
@@ -329,7 +329,7 @@ export const FocusMode: React.FC<FocusModeProps> = ({
   if (!task) return null;
 
   const progress = (timeLeft / (25 * 60)) * 100;
-  const taskProject = projects.find((p) => p.id === task.project_id);
+  const taskProject = projects.find((p) => p.id === task.projectId);
 
   return (
     <AnimatePresence>
@@ -478,10 +478,10 @@ export const FocusMode: React.FC<FocusModeProps> = ({
                       {taskProject.name}
                     </div>
                   )}
-                  {task.due_date && (
+                  {task.dueDate && (
                     <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-white/[0.06] bg-white/[0.03] text-[11px] font-mono text-white/35">
                       <Calendar className="w-3 h-3" />
-                      {format(parseISO(task.due_date.split('T')[0]), 'd MMM', { locale: es })}
+                      {format(parseISO(task.dueDate.split('T')[0]), 'd MMM', { locale: es })}
                     </div>
                   )}
                   <button

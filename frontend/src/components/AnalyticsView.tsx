@@ -38,7 +38,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
   const modeTasks = useMemo(() => {
     if (mode === 'completed') return tasks.filter((t) => t.status === 'done');
     if (mode === 'planned')
-      return tasks.filter((t) => !!t.due_date || t.status === 'todo' || t.status === 'doing');
+      return tasks.filter((t) => !!t.dueDate || t.status === 'todo' || t.status === 'doing');
     return tasks;
   }, [tasks, mode]);
 
@@ -59,16 +59,16 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
     };
 
     if (selectedMode === 'completed') {
-      if (task.completed_at) return parseDate(task.completed_at);
-      if (task.status === 'done') return parseDate(task.created_at);
+      if (task.completedAt) return parseDate(task.completedAt);
+      if (task.status === 'done') return parseDate(task.createdAt);
       return null;
     }
     if (selectedMode === 'planned') {
-      if (task.due_date) return parseDate(task.due_date);
-      if (task.status === 'todo' || task.status === 'doing') return parseDate(task.created_at);
+      if (task.dueDate) return parseDate(task.dueDate);
+      if (task.status === 'todo' || task.status === 'doing') return parseDate(task.createdAt);
       return null;
     }
-    return task.created_at ? parseDate(task.created_at) : null;
+    return task.createdAt ? parseDate(task.createdAt) : null;
   };
 
   const last7Days: ChartPoint[] = useMemo(() => {
@@ -92,17 +92,17 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
 
   const weeklyCompleted = tasks.filter((task) => {
     if (task.status !== 'done') return false;
-    const d = task.completed_at ? new Date(task.completed_at) : new Date(task.created_at);
+    const d = task.completedAt ? new Date(task.completedAt) : new Date(task.createdAt);
     return isWithinInterval(d, { start: weekStart, end: weekEnd });
   }).length;
 
   const weeklyCreated = tasks.filter((task) => {
-    return isWithinInterval(new Date(task.created_at), { start: weekStart, end: weekEnd });
+    return isWithinInterval(new Date(task.createdAt), { start: weekStart, end: weekEnd });
   }).length;
 
   const carryOver = tasks.filter((task) => {
     if (task.status === 'done') return false;
-    return new Date(task.created_at) < weekStart;
+    return new Date(task.createdAt) < weekStart;
   }).length;
 
   const suggestedForNextWeek = tasks.filter((task) => task.status === 'backlog').length;

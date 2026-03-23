@@ -4,6 +4,7 @@ export interface Project {
   id: string;
   name: string;
   color?: string;
+  userId: string;
 }
 
 export interface Task {
@@ -12,15 +13,17 @@ export interface Task {
   description?: string;
   status: TaskStatus;
   priority: number; // 1: Low, 2: Medium, 3: High
-  due_date?: string;
-  project_id?: string;
-  created_at: string;
-  completed_at?: string;
+  dueDate?: string;
+  projectId?: string;
+  userId: string;
+  createdAt: string;
+  updatedAt: string;
+  completedAt?: string;
 }
 
 export interface NLPResult {
   title: string;
-  due_date?: string;
+  dueDate?: string;
   priority?: number;
-  project_name?: string;
+  projectName?: string;
 }
