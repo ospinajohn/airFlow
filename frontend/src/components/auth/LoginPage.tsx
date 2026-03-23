@@ -27,13 +27,36 @@ export const LoginPage: React.FC<{ onSwitchAction: () => void }> = ({ onSwitchAc
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation();
+    if (isLoading) return;
+
+    // ── Validación manual — un mensaje claro a la vez ──
+    if (!email.trim()) {
+      setError('Ingresa tu correo electrónico.');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setError('El correo no tiene un formato válido.');
+      return;
+    }
+    if (!password) {
+      setError('Ingresa tu contraseña.');
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
+
     try {
       const { data } = await apiClient.post('/auth/login', { email, password });
       login(data.user, data.access_token);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Credenciales incorrectas. Intenta de nuevo.');
+      const message =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        err?.message ||
+        'Credenciales incorrectas. Verifica tu correo y contraseña.';
+      setError(message);
     } finally {
       setIsLoading(false);
     }
@@ -41,7 +64,7 @@ export const LoginPage: React.FC<{ onSwitchAction: () => void }> = ({ onSwitchAc
 
   return (
     <div className="min-h-screen flex overflow-hidden">
-      {/* ── Panel izquierdo: Identidad del producto ── */}
+      {/* ── Panel izquierdo ── */}
       <motion.div
         initial={{ opacity: 0, x: -40 }}
         animate={{ opacity: 1, x: 0 }}
@@ -51,7 +74,6 @@ export const LoginPage: React.FC<{ onSwitchAction: () => void }> = ({ onSwitchAc
           background: 'radial-gradient(ellipse 80% 60% at 0% 50%, rgba(99,102,241,0.15) 0%, transparent 70%), radial-gradient(ellipse 60% 80% at 100% 100%, rgba(16,185,129,0.08) 0%, transparent 70%)',
         }}
       >
-        {/* Grid estético */}
         <div
           className="absolute inset-0 opacity-[0.03]"
           style={{
@@ -59,12 +81,9 @@ export const LoginPage: React.FC<{ onSwitchAction: () => void }> = ({ onSwitchAc
             backgroundSize: '48px 48px',
           }}
         />
-
-        {/* Esferas de luz */}
         <div className="absolute top-20 left-20 w-72 h-72 rounded-full bg-indigo-500/10 blur-[100px] animate-pulse" />
         <div className="absolute bottom-10 right-0 w-64 h-64 rounded-full bg-emerald-500/8 blur-[80px] animate-pulse" style={{ animationDelay: '2s' }} />
 
-        {/* Logo */}
         <div className="relative z-10 flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center shadow-lg shadow-indigo-500/30">
             <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
@@ -75,7 +94,6 @@ export const LoginPage: React.FC<{ onSwitchAction: () => void }> = ({ onSwitchAc
           <span className="text-white font-semibold tracking-tight text-lg">AirFlow</span>
         </div>
 
-        {/* Tagline rotante */}
         <div className="relative z-10 flex-1 flex flex-col justify-center">
           <div className="mb-6 flex items-center gap-2">
             <div className="h-px w-10 bg-gradient-to-r from-indigo-400 to-transparent" />
@@ -101,7 +119,6 @@ export const LoginPage: React.FC<{ onSwitchAction: () => void }> = ({ onSwitchAc
           </div>
         </div>
 
-        {/* Indicadores de características */}
         <div className="relative z-10 grid grid-cols-3 gap-4">
           {[
             { label: 'Tablero Kanban', icon: <LayoutGrid className="w-4 h-4" /> },
@@ -118,7 +135,6 @@ export const LoginPage: React.FC<{ onSwitchAction: () => void }> = ({ onSwitchAc
 
       {/* ── Panel derecho: Formulario ── */}
       <div className="flex-1 flex items-center justify-center p-8 relative">
-        {/* Fondo sutil */}
         <div className="absolute inset-0 bg-gradient-to-br from-transparent via-indigo-500/[0.02] to-transparent" />
 
         <motion.div
@@ -127,7 +143,6 @@ export const LoginPage: React.FC<{ onSwitchAction: () => void }> = ({ onSwitchAc
           transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1], delay: 0.2 }}
           className="w-full max-w-sm relative z-10"
         >
-          {/* Header solo visible en mobile */}
           <div className="lg:hidden flex items-center gap-2.5 mb-10">
             <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center">
               <svg width="16" height="16" viewBox="0 0 18 18" fill="none">
@@ -142,17 +157,15 @@ export const LoginPage: React.FC<{ onSwitchAction: () => void }> = ({ onSwitchAc
             <p className="text-white/40 text-sm">Inicia sesión para continuar tu flujo</p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Email */}
+          <form onSubmit={handleSubmit} noValidate className="space-y-4">
             <div className="group">
               <label className="block text-xs font-medium text-white/50 mb-1.5 ml-0.5 tracking-wide uppercase">Email</label>
               <div className="relative">
                 <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/25 group-focus-within:text-indigo-400 transition-colors duration-200" />
                 <input
                   type="email"
-                  required
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => { setEmail(e.target.value); setError(null); }}
                   className="w-full bg-white/[0.04] border border-white/[0.08] hover:border-white/[0.14] focus:border-indigo-500/60 focus:bg-indigo-500/[0.04] rounded-xl py-3 pl-10 pr-4 text-white text-sm placeholder:text-white/20 outline-none transition-all duration-200 focus:ring-2 focus:ring-indigo-500/20"
                   placeholder="tu@email.com"
                   autoComplete="email"
@@ -160,16 +173,14 @@ export const LoginPage: React.FC<{ onSwitchAction: () => void }> = ({ onSwitchAc
               </div>
             </div>
 
-            {/* Contraseña */}
             <div className="group">
               <label className="block text-xs font-medium text-white/50 mb-1.5 ml-0.5 tracking-wide uppercase">Contraseña</label>
               <div className="relative">
                 <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/25 group-focus-within:text-indigo-400 transition-colors duration-200" />
                 <input
                   type={showPassword ? 'text' : 'password'}
-                  required
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => { setPassword(e.target.value); setError(null); }}
                   className="w-full bg-white/[0.04] border border-white/[0.08] hover:border-white/[0.14] focus:border-indigo-500/60 focus:bg-indigo-500/[0.04] rounded-xl py-3 pl-10 pr-10 text-white text-sm placeholder:text-white/20 outline-none transition-all duration-200 focus:ring-2 focus:ring-indigo-500/20"
                   placeholder="••••••••"
                   autoComplete="current-password"
@@ -178,13 +189,13 @@ export const LoginPage: React.FC<{ onSwitchAction: () => void }> = ({ onSwitchAc
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3.5 top-1/2 -translate-y-1/2 text-white/20 hover:text-white/50 transition-colors"
+                  tabIndex={-1}
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
             </div>
 
-            {/* Error */}
             <AnimatePresence mode="wait">
               {error && (
                 <motion.div
@@ -195,14 +206,13 @@ export const LoginPage: React.FC<{ onSwitchAction: () => void }> = ({ onSwitchAc
                   transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
                   className="overflow-hidden"
                 >
-                  <div className="bg-red-500/[0.08] border border-red-500/20 text-red-400 px-4 py-3 rounded-xl text-xs overflow-hidden">
+                  <div className="bg-red-500/[0.08] border border-red-500/20 text-red-400 px-4 py-3 rounded-xl text-xs">
                     {error}
                   </div>
                 </motion.div>
               )}
             </AnimatePresence>
 
-            {/* Submit */}
             <motion.button
               type="submit"
               disabled={isLoading}
@@ -225,6 +235,7 @@ export const LoginPage: React.FC<{ onSwitchAction: () => void }> = ({ onSwitchAc
             <p className="text-white/35 text-sm">
               ¿Primera vez?{' '}
               <button
+                type="button"
                 onClick={onSwitchAction}
                 className="text-indigo-400 hover:text-indigo-300 font-medium transition-colors"
               >
