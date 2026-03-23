@@ -6,8 +6,9 @@ import { Prisma } from '@prisma/client';
 export class ProjectsService {
   constructor(private prisma: PrismaService) {}
 
-  async findAll() {
+  async findAll(userId: string) {
     return this.prisma.project.findMany({
+      where: { userId },
       include: { tasks: true },
       orderBy: { name: 'asc' },
     });

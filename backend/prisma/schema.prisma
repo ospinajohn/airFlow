@@ -13,6 +13,7 @@ model User {
   email     String    @unique
   name      String?
   password  String
+  active    Boolean   @default(true)
   projects  Project[]
   tasks     Task[]
   createdAt DateTime  @default(now())

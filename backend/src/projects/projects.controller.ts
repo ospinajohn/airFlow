@@ -1,19 +1,24 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request } from '@nestjs/common';
 import { ProjectsService } from './projects.service';
 import { Prisma } from '@prisma/client';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
+@UseGuards(JwtAuthGuard)
 @Controller('projects')
 export class ProjectsController {
   constructor(private readonly projectsService: ProjectsService) {}
 
   @Get()
-  findAll() {
-    return this.projectsService.findAll();
+  findAll(@Request() req) {
+    return this.projectsService.findAll(req.user.userId);
   }
 
   @Post()
-  create(@Body() createProjectDto: Prisma.ProjectCreateInput) {
-    return this.projectsService.create(createProjectDto);
+  create(@Request() req, @Body() createProjectDto: Prisma.ProjectCreateWithoutUserInput) {
+    return this.projectsService.create({
+      ...createProjectDto,
+      user: { connect: { id: req.user.userId } },
+    });
   }
 
   @Patch(':id')
