@@ -48,6 +48,21 @@ import { LoginPage } from "./components/auth/LoginPage";
 import { RegisterPage } from "./components/auth/RegisterPage";
 import apiClient from "./api/client";
 
+function LogoutIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg
+      width={size} height={size}
+      viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="1.8"
+      strokeLinecap="round" strokeLinejoin="round"
+    >
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+      <polyline points="16 17 21 12 16 7" />
+      <line x1="21" y1="12" x2="9" y2="12" />
+    </svg>
+  );
+}
+
 function Dashboard() {
   const PROJECT_COLORS = [
     "#3b82f6",
@@ -129,7 +144,7 @@ function Dashboard() {
     }),
   );
 
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
 
   useEffect(() => {
     fetchTasks();
@@ -207,7 +222,7 @@ function Dashboard() {
         projectModalMode === "create"
           ? "/projects"
           : `/projects/${projectDraft.id}`;
-      
+
       if (projectModalMode === "create") {
         await apiClient.post(endpoint, { name: trimmedName, color: projectDraft.color });
       } else {
@@ -664,6 +679,11 @@ function Dashboard() {
 
   const todayTasks = tasks.filter((t) => t.status === "todo");
 
+  // ── Inicial del usuario para el avatar ──
+  const userInitial = (user?.name?.[0] || user?.email?.[0] || "U").toUpperCase();
+  const userName = user?.name || user?.email?.split("@")[0] || "Usuario";
+  const userEmail = user?.email || "";
+
   return (
     <div className="h-screen w-screen flex flex-col overflow-hidden bg-flow-bg">
       {/* Ambient Background Orbs */}
@@ -674,45 +694,65 @@ function Dashboard() {
       </div>
 
       {/* Navigation Rail */}
-      <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 md:bottom-auto md:left-6 md:top-1/2 md:-translate-y-1/2 md:-translate-x-0 z-40 flex flex-row md:flex-col gap-2 md:gap-6 p-2 md:p-2 glass rounded-full overflow-x-auto w-[90vw] md:w-auto justify-between md:justify-center no-scrollbar">
-        <NavButton
-          active={view === "bubbles"}
-          onClick={() => setView("bubbles")}
-          icon={<Zap />}
-          label="Flujo"
-        />
-        <NavButton
-          active={view === "kanban"}
-          onClick={() => setView("kanban")}
-          icon={<LayoutGrid />}
-          label="Tablero"
-          highlight={kanbanPulse}
-        />
-        <NavButton
-          active={view === "projects"}
-          onClick={() => setView("projects")}
-          icon={<List />}
-          label="Proyectos"
-        />
-        <NavButton
-          active={view === "analytics"}
-          onClick={() => setView("analytics")}
-          icon={<BarChart3 />}
-          label="Estadísticas"
-        />
-        <NavButton
-          active={showSettings}
-          onClick={() => setShowSettings(true)}
-          icon={<Settings />}
-          label="Ajustes"
-        />
-        <div className="w-8 h-px bg-white/10 mx-auto my-2" />
-        <NavButton
-          active={false}
+      <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 md:bottom-auto md:left-4 md:top-1/2 md:-translate-y-1/2 md:-translate-x-0 z-40 flex flex-row md:flex-col gap-1 md:gap-1 p-2 glass rounded-full overflow-x-auto w-[90vw] md:w-auto justify-between md:justify-center no-scrollbar">
+
+        <NavButton active={view === "bubbles"} onClick={() => setView("bubbles")} icon={<Zap />} label="Flujo" />
+        <NavButton active={view === "kanban"} onClick={() => setView("kanban")} icon={<LayoutGrid />} label="Tablero" highlight={kanbanPulse} />
+        <NavButton active={view === "projects"} onClick={() => setView("projects")} icon={<List />} label="Proyectos" />
+        <NavButton active={view === "analytics"} onClick={() => setView("analytics")} icon={<BarChart3 />} label="Estadísticas" />
+
+        <div className="hidden md:block w-6 h-px bg-white/[0.07] mx-auto my-1" />
+
+        <NavButton active={showSettings} onClick={() => setShowSettings(true)} icon={<Settings />} label="Ajustes" />
+
+        {/* Sesión: avatar + logout — solo desktop */}
+        <div className="hidden md:flex flex-col items-center gap-1 pt-1">
+          <div className="w-px h-4 bg-white/[0.06]" />
+
+          {/* Avatar */}
+          <div className="relative group/avatar">
+            <div className="w-9 h-9 rounded-full bg-flow-accent/15 border border-flow-accent/25 flex items-center justify-center cursor-default select-none">
+              <span className="text-[12px] font-mono font-bold text-flow-accent">
+                {userInitial}
+              </span>
+            </div>
+            <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-0 group-hover/avatar:opacity-100 transition-all duration-200 z-50">
+              <div className="bg-black/90 border border-white/[0.08] rounded-xl px-3 py-2.5 whitespace-nowrap shadow-xl">
+                <p className="text-[11px] font-medium text-white/70">{userName}</p>
+                {userEmail && <p className="text-[9px] font-mono text-white/30 mt-0.5">{userEmail}</p>}
+                <div className="flex items-center gap-1 mt-1.5">
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-400/70" />
+                  <span className="text-[9px] font-mono text-white/25 uppercase tracking-widest">Sesión activa</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Logout */}
+          <div className="relative group/logout">
+            <button
+              onClick={logout}
+              className="w-9 h-9 rounded-full flex items-center justify-center text-white/20 hover:text-red-400/80 hover:bg-red-500/10 border border-transparent hover:border-red-500/15 transition-all duration-200"
+              aria-label="Cerrar sesión"
+            >
+              <LogoutIcon size={15} />
+            </button>
+            <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-0 group-hover/logout:opacity-100 transition-all duration-200 z-50">
+              <div className="bg-black/90 border border-red-500/20 rounded-xl px-3 py-2 whitespace-nowrap shadow-xl">
+                <p className="text-[11px] font-mono text-red-400/80">Cerrar sesión</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Logout mobile */}
+        <button
           onClick={logout}
-          icon={<List className="rotate-180" />}
-          label="Cerrar Sesión"
-        />
+          className="md:hidden p-3 rounded-full flex items-center justify-center text-white/25 hover:text-red-400/70 hover:bg-red-500/10 transition-all"
+          aria-label="Cerrar sesión"
+        >
+          <LogoutIcon size={18} />
+        </button>
       </nav>
 
       {/* Main Content */}
@@ -1235,6 +1275,26 @@ function Dashboard() {
                     </div>
                   </div>
                   <span className="text-xs text-white/35">Abrir</span>
+                </button>
+              </div>
+
+              {/* Card de sesión */}
+              <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-flow-accent/15 border border-flow-accent/25 flex items-center justify-center">
+                    <span className="text-[11px] font-mono font-bold text-flow-accent">{userInitial}</span>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-white/70">{userName}</p>
+                    {userEmail && <p className="text-[10px] text-white/30 font-mono">{userEmail}</p>}
+                  </div>
+                </div>
+                <button
+                  onClick={logout}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400/70 hover:text-red-400 text-[11px] font-mono transition-all border border-red-500/15"
+                >
+                  <LogoutIcon size={12} />
+                  Salir
                 </button>
               </div>
 
