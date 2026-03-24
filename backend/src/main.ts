@@ -6,7 +6,7 @@ import { ValidationPipe } from '@nestjs/common';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  app.enableCors(); // 🌐 Permitir comunicación con el frontend
+  app.enableCors({ origin: process.env.FRONTEND_URL || '*' }); // 🌐 Permitir comunicación con el frontend
   app.setGlobalPrefix('api'); // 🛣️ Rutas como /api/tasks
 
   // 🛡️ Validación Global: Rechaza datos no válidos automáticamente
