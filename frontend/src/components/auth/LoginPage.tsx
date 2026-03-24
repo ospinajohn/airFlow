@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
 import {
   Mail,
@@ -21,9 +22,7 @@ const TAGLINES = [
   "Claridad sobre todo lo demás.",
 ];
 
-export const LoginPage: React.FC<{ onSwitchAction: () => void }> = ({
-  onSwitchAction,
-}) => {
+export const LoginPage: React.FC = () => {
   const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -65,9 +64,6 @@ export const LoginPage: React.FC<{ onSwitchAction: () => void }> = ({
     try {
       const { data } = await apiClient.post("/auth/login", { email, password });
       login(data.user, data.access_token);
-
-      // Limpia la URL a la raíz después del login exitoso
-      window.history.replaceState({}, "", "/");
     } catch (err: any) {
       const message =
         err?.response?.data?.message ||
@@ -305,13 +301,12 @@ export const LoginPage: React.FC<{ onSwitchAction: () => void }> = ({
           <div className="mt-6 pt-6 border-t border-white/[0.06] text-center">
             <p className="text-white/35 text-sm">
               ¿Primera vez?{" "}
-              <button
-                type="button"
-                onClick={onSwitchAction}
+              <Link
+                to="/register"
                 className="text-indigo-400 hover:text-indigo-300 font-medium transition-colors"
               >
                 Crea tu cuenta
-              </button>
+              </Link>
             </p>
           </div>
         </motion.div>

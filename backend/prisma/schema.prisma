@@ -16,8 +16,22 @@ model User {
   active    Boolean   @default(true)
   projects  Project[]
   tasks     Task[]
+  settings  UserSettings?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
+}
+
+// ⚙️ Configuración Personalizada por Usuario
+model UserSettings {
+  id                      String   @id @default(uuid())
+  user                    User     @relation(fields: [userId], references: [id])
+  userId                  String   @unique
+  autoStartPomodoro       Boolean  @default(false)
+  showKanbanHealthCheck   Boolean  @default(true)
+  weekStartsOn            Int      @default(1) // 0: Domingo, 1: Lunes
+  vibrationEnabled        Boolean  @default(true)
+  theme                   String   @default("dark")
+  updatedAt               DateTime @updatedAt
 }
 
 // 📁 Modelo de Proyecto

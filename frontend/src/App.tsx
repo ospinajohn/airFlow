@@ -1,4 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
 import {
   LayoutGrid,
@@ -68,6 +74,7 @@ function LogoutIcon({ size = 16 }: { size?: number }) {
 }
 
 function Dashboard() {
+  const { logout, user, settings, updateSettings } = useAuth();
   const PROJECT_COLORS = [
     "#3b82f6",
     "#10b981",
@@ -88,8 +95,46 @@ function Dashboard() {
   const [focusedTask, setFocusedTask] = useState<Task | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [autoStartPomodoro, setAutoStartPomodoro] = useState(false); // Por defecto desactivado
-  const [showKanbanHealthCheck, setShowKanbanHealthCheck] = useState(false); // Por defecto desactivado
+
+  // Estados locales que se sincronizan con las configuraciones del backend
+  const [autoStartPomodoro, setAutoStartPomodoro] = useState(false);
+  const [showKanbanHealthCheck, setShowKanbanHealthCheck] = useState(false);
+  const [weekStartsOn, setWeekStartsOn] = useState<0 | 1>(1);
+  const [theme, setTheme] = useState<"dark" | "light" | "system">("dark");
+
+  // Sincronizar estados locales con settings del AuthContext
+  useEffect(() => {
+    if (settings) {
+      setAutoStartPomodoro(settings.autoStartPomodoro);
+      setShowKanbanHealthCheck(settings.showKanbanHealthCheck);
+      setWeekStartsOn(settings.weekStartsOn as 0 | 1);
+      if (
+        settings.theme === "dark" ||
+        settings.theme === "light" ||
+        settings.theme === "system"
+      ) {
+        setTheme(settings.theme);
+      }
+    }
+  }, [settings]);
+
+  useEffect(() => {
+    if (theme === "light") {
+      document.documentElement.classList.add("light");
+      return;
+    }
+
+    if (theme === "dark") {
+      document.documentElement.classList.remove("light");
+      return;
+    }
+
+    const prefersLight = window.matchMedia(
+      "(prefers-color-scheme: light)",
+    ).matches;
+    document.documentElement.classList.toggle("light", prefersLight);
+  }, [theme]);
+
   const [showSettings, setShowSettings] = useState(false);
   const [showShortcutsCenter, setShowShortcutsCenter] = useState(false);
   const [showProjectModal, setShowProjectModal] = useState(false);
@@ -113,11 +158,13 @@ function Dashboard() {
     title: string;
   } | null>(null);
   const [isDeletingTask, setIsDeletingTask] = useState(false);
+  const [kanbanPulse, setKanbanPulse] = useState(false);
+  const dropZoneHoyRef = useRef<HTMLDivElement>(null);
+  const dropZoneLuegoRef = useRef<HTMLDivElement>(null);
+
   const [kanbanViewMode, setKanbanViewMode] = useState<"kanban" | "calendar">(
     "kanban",
   );
-  const [weekStartsOn, setWeekStartsOn] = useState<0 | 1>(1); // 0 = Domingo, 1 = Lunes
-
   const [overColumnId, setOverColumnId] = useState<string | null>(null);
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
   const [isBulkUpdating, setIsBulkUpdating] = useState(false);
@@ -125,9 +172,46 @@ function Dashboard() {
     null,
   );
   const [isPlanningNextWeek, setIsPlanningNextWeek] = useState(false);
-  const [kanbanPulse, setKanbanPulse] = useState(false);
-  const dropZoneHoyRef = useRef<HTMLDivElement>(null);
-  const dropZoneLuegoRef = useRef<HTMLDivElement>(null);
+
+  const handleToggleAutoStart = async () => {
+    const newVal = !autoStartPomodoro;
+    setAutoStartPomodoro(newVal);
+    try {
+      await updateSettings({ autoStartPomodoro: newVal });
+    } catch (e) {
+      setAutoStartPomodoro(!newVal);
+    }
+  };
+
+  const handleToggleKanbanHealth = async () => {
+    const newVal = !showKanbanHealthCheck;
+    setShowKanbanHealthCheck(newVal);
+    try {
+      await updateSettings({ showKanbanHealthCheck: newVal });
+    } catch (e) {
+      setShowKanbanHealthCheck(!newVal);
+    }
+  };
+
+  const handleChangeWeekStart = async (val: 0 | 1) => {
+    setWeekStartsOn(val);
+    try {
+      await updateSettings({ weekStartsOn: val });
+    } catch (e) {
+      setWeekStartsOn(weekStartsOn);
+    }
+  };
+
+  const handleChangeTheme = async (nextTheme: "dark" | "light" | "system") => {
+    const previousTheme = theme;
+    setTheme(nextTheme);
+    try {
+      await updateSettings({ theme: nextTheme });
+    } catch (e) {
+      setTheme(previousTheme);
+    }
+  };
+
   const [snoozeMeta, setSnoozeMeta] = useState<
     Record<string, { count: number; lastPreset: string; updatedAt: string }>
   >(() => {
@@ -149,8 +233,6 @@ function Dashboard() {
       coordinateGetter: sortableKeyboardCoordinates,
     }),
   );
-
-  const { logout, user } = useAuth();
 
   useEffect(() => {
     fetchTasks();
@@ -1263,7 +1345,7 @@ function Dashboard() {
                     </p>
                   </div>
                   <button
-                    onClick={() => setAutoStartPomodoro(!autoStartPomodoro)}
+                    onClick={handleToggleAutoStart}
                     className={`w-12 h-6 rounded-full transition-colors relative ${autoStartPomodoro ? "bg-flow-accent" : "bg-white/10"}`}
                   >
                     <motion.div
@@ -1282,7 +1364,7 @@ function Dashboard() {
                   </div>
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => setWeekStartsOn(1)}
+                      onClick={() => handleChangeWeekStart(1)}
                       className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                         weekStartsOn === 1
                           ? "bg-flow-accent text-white"
@@ -1292,7 +1374,7 @@ function Dashboard() {
                       Lunes
                     </button>
                     <button
-                      onClick={() => setWeekStartsOn(0)}
+                      onClick={() => handleChangeWeekStart(0)}
                       className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                         weekStartsOn === 0
                           ? "bg-flow-accent text-white"
@@ -1314,9 +1396,7 @@ function Dashboard() {
                     </p>
                   </div>
                   <button
-                    onClick={() =>
-                      setShowKanbanHealthCheck(!showKanbanHealthCheck)
-                    }
+                    onClick={handleToggleKanbanHealth}
                     className={`w-12 h-6 rounded-full transition-colors relative ${showKanbanHealthCheck ? "bg-flow-accent" : "bg-white/10"}`}
                   >
                     <motion.div
@@ -1324,6 +1404,47 @@ function Dashboard() {
                       className="absolute top-1 w-4 h-4 rounded-full bg-white shadow-sm"
                     />
                   </button>
+                </div>
+
+                <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl">
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium">Tema de la interfaz</p>
+                    <p className="text-xs text-white/40">
+                      Elige entre oscuro, claro o automático según tu sistema
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleChangeTheme("dark")}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                        theme === "dark"
+                          ? "bg-flow-accent text-white"
+                          : "bg-white/5 text-white/40 hover:text-white/70"
+                      }`}
+                    >
+                      Oscuro
+                    </button>
+                    <button
+                      onClick={() => handleChangeTheme("light")}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                        theme === "light"
+                          ? "bg-flow-accent text-white"
+                          : "bg-white/5 text-white/40 hover:text-white/70"
+                      }`}
+                    >
+                      Claro
+                    </button>
+                    <button
+                      onClick={() => handleChangeTheme("system")}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                        theme === "system"
+                          ? "bg-flow-accent text-white"
+                          : "bg-white/5 text-white/40 hover:text-white/70"
+                      }`}
+                    >
+                      Sistema
+                    </button>
+                  </div>
                 </div>
 
                 <button
@@ -1747,15 +1868,16 @@ function Dashboard() {
 // 🌐 Auth Entry Point
 export default function App() {
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <Router>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </Router>
   );
 }
 
 function AppContent() {
   const { isAuthenticated, loading } = useAuth();
-  const [authMode, setAuthMode] = useState<"login" | "register">("login");
 
   if (loading) {
     return (
@@ -1765,15 +1887,30 @@ function AppContent() {
     );
   }
 
-  if (!isAuthenticated) {
-    return authMode === "login" ? (
-      <LoginPage onSwitchAction={() => setAuthMode("register")} />
-    ) : (
-      <RegisterPage onSwitchAction={() => setAuthMode("login")} />
-    );
-  }
-
-  return <Dashboard />;
+  return (
+    <Routes>
+      <Route
+        path="/login"
+        element={isAuthenticated ? <Navigate to="/" replace /> : <LoginPage />}
+      />
+      <Route
+        path="/register"
+        element={
+          isAuthenticated ? <Navigate to="/" replace /> : <RegisterPage />
+        }
+      />
+      <Route
+        path="/"
+        element={
+          isAuthenticated ? <Dashboard /> : <Navigate to="/login" replace />
+        }
+      />
+      <Route
+        path="*"
+        element={<Navigate to={isAuthenticated ? "/" : "/login"} replace />}
+      />
+    </Routes>
+  );
 }
 
 function NavButton({
