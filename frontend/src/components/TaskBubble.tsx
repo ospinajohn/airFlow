@@ -1,17 +1,23 @@
-import React, { useRef, useState, useEffect } from 'react';
-import { motion, useAnimation } from 'motion/react';
-import { Trash2, Clock } from 'lucide-react';
-import { Task } from '../types';
+import React, { useRef, useState, useEffect } from "react";
+import { motion, useAnimation } from "motion/react";
+import { Trash2, Clock } from "lucide-react";
+import { Task } from "../types";
 
 interface BubbleProps {
   task: Task;
   onComplete: (id: string) => void;
   onDelete: (id: string) => void;
   onFocus: (task: Task) => void;
-  onDrop: (id: string, zone: 'hoy' | 'luego') => void;
+  onDrop: (id: string, zone: "hoy" | "luego") => void;
 }
 
-export const TaskBubble: React.FC<BubbleProps> = ({ task, onComplete, onDelete, onFocus, onDrop }) => {
+export const TaskBubble: React.FC<BubbleProps> = ({
+  task,
+  onComplete,
+  onDelete,
+  onFocus,
+  onDrop,
+}) => {
   const controls = useAnimation();
   const bubbleRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -23,20 +29,32 @@ export const TaskBubble: React.FC<BubbleProps> = ({ task, onComplete, onDelete, 
     const now = new Date();
     const due = new Date(task.dueDate);
     const isOverdue = due.getTime() < now.getTime();
-    const time = due.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+    const time = due.toLocaleTimeString("es-ES", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
 
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const todayStart = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+    );
     const dueDay = new Date(due.getFullYear(), due.getMonth(), due.getDate());
-    const diffDays = Math.round((dueDay.getTime() - todayStart.getTime()) / (1000 * 60 * 60 * 24));
+    const diffDays = Math.round(
+      (dueDay.getTime() - todayStart.getTime()) / (1000 * 60 * 60 * 24),
+    );
 
     if (isOverdue) return { text: `Vencido · ${time}`, overdue: true };
     if (diffDays === 0) return { text: `Hoy · ${time}`, overdue: false };
     if (diffDays === 1) return { text: `Mañana · ${time}`, overdue: false };
     if (diffDays < 7) {
-      const dayName = due.toLocaleDateString('es-ES', { weekday: 'short' });
+      const dayName = due.toLocaleDateString("es-ES", { weekday: "short" });
       return { text: `${dayName} · ${time}`, overdue: false };
     }
-    const dateStr = due.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+    const dateStr = due.toLocaleDateString("es-ES", {
+      day: "numeric",
+      month: "short",
+    });
     return { text: `${dateStr} · ${time}`, overdue: false };
   };
 
@@ -44,21 +62,21 @@ export const TaskBubble: React.FC<BubbleProps> = ({ task, onComplete, onDelete, 
 
   // Size based on priority
   const size = task.priority === 3 ? 160 : task.priority === 2 ? 130 : 100;
-  
+
   // Color based on urgency
   const isUrgent = task.priority === 3;
   const palette = isUrgent
     ? {
-        border: 'rgba(239, 68, 68, 0.48)',
-        bg: 'rgba(14, 14, 14, 0.68)',
-        glow: '0 6px 18px rgba(239,68,68,0.18)',
-        badge: 'text-red-300',
+        border: "rgba(239, 68, 68, 0.48)",
+        bg: "rgba(14, 14, 14, 0.68)",
+        glow: "0 6px 18px rgba(239,68,68,0.18)",
+        badge: "text-red-300",
       }
     : {
-        border: 'rgba(148, 163, 184, 0.44)',
-        bg: 'rgba(14, 14, 14, 0.66)',
-        glow: '0 6px 18px rgba(15,23,42,0.22)',
-        badge: 'text-slate-300',
+        border: "rgba(148, 163, 184, 0.44)",
+        bg: "rgba(14, 14, 14, 0.66)",
+        glow: "0 6px 18px rgba(15,23,42,0.22)",
+        badge: "text-slate-300",
       };
 
   // Deterministic random position based on task ID
@@ -80,10 +98,10 @@ export const TaskBubble: React.FC<BubbleProps> = ({ task, onComplete, onDelete, 
 
   // Reset animation when task status changes or component mounts
   useEffect(() => {
-    controls.start({ 
-      scale: 1, 
+    controls.start({
+      scale: 1,
       opacity: 1,
-      transition: { type: "spring", stiffness: 300, damping: 25 }
+      transition: { type: "spring", stiffness: 300, damping: 25 },
     });
   }, [task.id, task.status, controls]); // Added task.id
 
@@ -99,15 +117,17 @@ export const TaskBubble: React.FC<BubbleProps> = ({ task, onComplete, onDelete, 
       info.point?.y ??
       event?.clientY ??
       event?.changedTouches?.[0]?.clientY ??
-      Infinity;
+      (bubbleRef.current
+        ? bubbleRef.current.getBoundingClientRect().top + info.offset.y
+        : Infinity);
     const pointerX =
       info.point?.x ??
       event?.clientX ??
       event?.changedTouches?.[0]?.clientX ??
       0;
 
-    // Drop zone: top 30% of viewport (generous to be forgiving)
-    const dropThreshold = window.innerHeight * 0.3;
+    // Drop zone: top 40% of viewport (generous to be forgiving)
+    const dropThreshold = window.innerHeight * 0.4;
 
     if (dragDistance > 20 && pointerY < dropThreshold) {
       const mid = window.innerWidth / 2;
@@ -115,19 +135,19 @@ export const TaskBubble: React.FC<BubbleProps> = ({ task, onComplete, onDelete, 
       controls.start({
         scale: 0,
         opacity: 0,
-        transition: { duration: 0.2, ease: "backIn" }
+        transition: { duration: 0.2, ease: "backIn" },
       });
 
       if (pointerX < mid) {
-        onDrop(task.id, 'hoy');
+        onDrop(task.id, "hoy");
       } else {
-        onDrop(task.id, 'luego');
+        onDrop(task.id, "luego");
       }
     } else {
-      controls.start({ 
-        scale: 1, 
+      controls.start({
+        scale: 1,
         opacity: 1,
-        transition: { type: "spring", stiffness: 300, damping: 25 }
+        transition: { type: "spring", stiffness: 300, damping: 25 },
       });
     }
   };
@@ -142,7 +162,6 @@ export const TaskBubble: React.FC<BubbleProps> = ({ task, onComplete, onDelete, 
       onFocus(task);
     }
   };
-
 
   return (
     <motion.div
@@ -177,13 +196,17 @@ export const TaskBubble: React.FC<BubbleProps> = ({ task, onComplete, onDelete, 
                 scale: [1, 1.015, 1, 0.995, 1],
               }
         }
-        transition={{ duration: floatDuration, repeat: Infinity, ease: 'easeInOut' }}
+        transition={{
+          duration: floatDuration,
+          repeat: Infinity,
+          ease: "easeInOut",
+        }}
         className="relative w-full h-full rounded-full flex items-center justify-center text-center p-4 border transition-transform duration-300 ease-out hover:scale-105 active:scale-95"
         style={{
           backgroundColor: palette.bg,
           borderColor: palette.border,
-          backdropFilter: 'blur(10px)',
-          WebkitBackdropFilter: 'blur(10px)',
+          backdropFilter: "blur(10px)",
+          WebkitBackdropFilter: "blur(10px)",
           boxShadow: `${palette.glow}, inset 0 1px 0 rgba(255,255,255,0.08)`,
         }}
       >
@@ -191,7 +214,8 @@ export const TaskBubble: React.FC<BubbleProps> = ({ task, onComplete, onDelete, 
           aria-hidden
           className="pointer-events-none absolute inset-0 rounded-full"
           style={{
-            background: 'radial-gradient(circle at 30% 25%, rgba(255,255,255,0.12), rgba(255,255,255,0) 56%)',
+            background:
+              "radial-gradient(circle at 30% 25%, rgba(255,255,255,0.12), rgba(255,255,255,0) 56%)",
           }}
         />
 
@@ -199,11 +223,13 @@ export const TaskBubble: React.FC<BubbleProps> = ({ task, onComplete, onDelete, 
           <span className="text-xs font-medium text-white/90 leading-tight overflow-hidden text-ellipsis line-clamp-2">
             {task.title}
           </span>
-          
+
           {dueLabel && (
-            <div className={`flex items-center gap-1 text-[9px] font-mono mt-0.5 ${
-              dueLabel.overdue ? 'text-red-300' : 'text-white/45'
-            }`}>
+            <div
+              className={`flex items-center gap-1 text-[9px] font-mono mt-0.5 ${
+                dueLabel.overdue ? "text-red-300" : "text-white/45"
+              }`}
+            >
               <Clock className="w-2 h-2 shrink-0" />
               <span>{dueLabel.text}</span>
             </div>
@@ -230,7 +256,9 @@ export const TaskBubble: React.FC<BubbleProps> = ({ task, onComplete, onDelete, 
           onDelete(task.id);
         }}
         className={`absolute top-2 right-2 z-10 p-1.5 rounded-full bg-white/10 text-white/80 border border-white/15 transition-all duration-150 hover:bg-red-500/80 hover:text-white hover:border-red-300/40 ${
-          isHovered ? 'opacity-100 scale-100 pointer-events-auto' : 'opacity-0 scale-90 pointer-events-none'
+          isHovered
+            ? "opacity-100 scale-100 pointer-events-auto"
+            : "opacity-0 scale-90 pointer-events-none"
         }`}
       >
         <Trash2 className="w-3 h-3" />

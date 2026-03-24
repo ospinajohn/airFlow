@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
   LayoutGrid,
@@ -51,10 +51,14 @@ import apiClient from "./api/client";
 function LogoutIcon({ size = 16 }: { size?: number }) {
   return (
     <svg
-      width={size} height={size}
-      viewBox="0 0 24 24" fill="none"
-      stroke="currentColor" strokeWidth="1.8"
-      strokeLinecap="round" strokeLinejoin="round"
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
     >
       <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
       <polyline points="16 17 21 12 16 7" />
@@ -122,6 +126,8 @@ function Dashboard() {
   );
   const [isPlanningNextWeek, setIsPlanningNextWeek] = useState(false);
   const [kanbanPulse, setKanbanPulse] = useState(false);
+  const dropZoneHoyRef = useRef<HTMLDivElement>(null);
+  const dropZoneLuegoRef = useRef<HTMLDivElement>(null);
   const [snoozeMeta, setSnoozeMeta] = useState<
     Record<string, { count: number; lastPreset: string; updatedAt: string }>
   >(() => {
@@ -224,15 +230,23 @@ function Dashboard() {
           : `/projects/${projectDraft.id}`;
 
       if (projectModalMode === "create") {
-        await apiClient.post(endpoint, { name: trimmedName, color: projectDraft.color });
+        await apiClient.post(endpoint, {
+          name: trimmedName,
+          color: projectDraft.color,
+        });
       } else {
-        await apiClient.patch(endpoint, { name: trimmedName, color: projectDraft.color });
+        await apiClient.patch(endpoint, {
+          name: trimmedName,
+          color: projectDraft.color,
+        });
       }
 
       await fetchProjects();
       setShowProjectModal(false);
     } catch (err: any) {
-      setProjectFormError(err.response?.data?.message || "No se pudo guardar el proyecto.");
+      setProjectFormError(
+        err.response?.data?.message || "No se pudo guardar el proyecto.",
+      );
     } finally {
       setIsSavingProject(false);
     }
@@ -566,9 +580,7 @@ function Dashboard() {
   const doingTasks = tasks.filter((t) => t.status === "doing");
   const overdueTasks = tasks.filter(
     (t) =>
-      t.status !== "done" &&
-      t.dueDate &&
-      new Date(t.dueDate).getTime() < nowMs,
+      t.status !== "done" && t.dueDate && new Date(t.dueDate).getTime() < nowMs,
   );
   const noDateTasks = tasks.filter(
     (t) => (t.status === "todo" || t.status === "doing") && !t.dueDate,
@@ -680,7 +692,11 @@ function Dashboard() {
   const todayTasks = tasks.filter((t) => t.status === "todo");
 
   // ── Inicial del usuario para el avatar ──
-  const userInitial = (user?.name?.[0] || user?.email?.[0] || "U").toUpperCase();
+  const userInitial = (
+    user?.name?.[0] ||
+    user?.email?.[0] ||
+    "U"
+  ).toUpperCase();
   const userName = user?.name || user?.email?.split("@")[0] || "Usuario";
   const userEmail = user?.email || "";
 
@@ -695,15 +711,40 @@ function Dashboard() {
 
       {/* Navigation Rail */}
       <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 md:bottom-auto md:left-4 md:top-1/2 md:-translate-y-1/2 md:-translate-x-0 z-40 flex flex-row md:flex-col gap-1 md:gap-1 p-2 glass rounded-full overflow-x-auto w-[90vw] md:w-auto justify-between md:justify-center no-scrollbar">
-
-        <NavButton active={view === "bubbles"} onClick={() => setView("bubbles")} icon={<Zap />} label="Flujo" />
-        <NavButton active={view === "kanban"} onClick={() => setView("kanban")} icon={<LayoutGrid />} label="Tablero" highlight={kanbanPulse} />
-        <NavButton active={view === "projects"} onClick={() => setView("projects")} icon={<List />} label="Proyectos" />
-        <NavButton active={view === "analytics"} onClick={() => setView("analytics")} icon={<BarChart3 />} label="Estadísticas" />
+        <NavButton
+          active={view === "bubbles"}
+          onClick={() => setView("bubbles")}
+          icon={<Zap />}
+          label="Flujo"
+        />
+        <NavButton
+          active={view === "kanban"}
+          onClick={() => setView("kanban")}
+          icon={<LayoutGrid />}
+          label="Tablero"
+          highlight={kanbanPulse}
+        />
+        <NavButton
+          active={view === "projects"}
+          onClick={() => setView("projects")}
+          icon={<List />}
+          label="Proyectos"
+        />
+        <NavButton
+          active={view === "analytics"}
+          onClick={() => setView("analytics")}
+          icon={<BarChart3 />}
+          label="Estadísticas"
+        />
 
         <div className="hidden md:block w-6 h-px bg-white/[0.07] mx-auto my-1" />
 
-        <NavButton active={showSettings} onClick={() => setShowSettings(true)} icon={<Settings />} label="Ajustes" />
+        <NavButton
+          active={showSettings}
+          onClick={() => setShowSettings(true)}
+          icon={<Settings />}
+          label="Ajustes"
+        />
 
         {/* Sesión: avatar + logout — solo desktop */}
         <div className="hidden md:flex flex-col items-center gap-1 pt-1">
@@ -718,11 +759,19 @@ function Dashboard() {
             </div>
             <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-0 group-hover/avatar:opacity-100 transition-all duration-200 z-50">
               <div className="bg-black/90 border border-white/[0.08] rounded-xl px-3 py-2.5 whitespace-nowrap shadow-xl">
-                <p className="text-[11px] font-medium text-white/70">{userName}</p>
-                {userEmail && <p className="text-[9px] font-mono text-white/30 mt-0.5">{userEmail}</p>}
+                <p className="text-[11px] font-medium text-white/70">
+                  {userName}
+                </p>
+                {userEmail && (
+                  <p className="text-[9px] font-mono text-white/30 mt-0.5">
+                    {userEmail}
+                  </p>
+                )}
                 <div className="flex items-center gap-1 mt-1.5">
                   <div className="w-1.5 h-1.5 rounded-full bg-emerald-400/70" />
-                  <span className="text-[9px] font-mono text-white/25 uppercase tracking-widest">Sesión activa</span>
+                  <span className="text-[9px] font-mono text-white/25 uppercase tracking-widest">
+                    Sesión activa
+                  </span>
                 </div>
               </div>
             </div>
@@ -739,7 +788,9 @@ function Dashboard() {
             </button>
             <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-0 group-hover/logout:opacity-100 transition-all duration-200 z-50">
               <div className="bg-black/90 border border-red-500/20 rounded-xl px-3 py-2 whitespace-nowrap shadow-xl">
-                <p className="text-[11px] font-mono text-red-400/80">Cerrar sesión</p>
+                <p className="text-[11px] font-mono text-red-400/80">
+                  Cerrar sesión
+                </p>
               </div>
             </div>
           </div>
@@ -818,7 +869,9 @@ function Dashboard() {
                     </div>
                     <p className="text-[11px] text-white/40 mb-2">
                       {todayTasks.length}{" "}
-                      {todayTasks.length === 1 ? "tarea en Hoy" : "tareas en Hoy"}{" "}
+                      {todayTasks.length === 1
+                        ? "tarea en Hoy"
+                        : "tareas en Hoy"}{" "}
                       (se ven también en el tablero)
                     </p>
                     <div className="space-y-1 max-h-32 overflow-y-auto no-scrollbar">
@@ -983,20 +1036,24 @@ function Dashboard() {
                 {/* Kanban Header with View Switcher */}
                 <div className="flex items-center justify-between px-6 md:px-0">
                   <div className="flex flex-col">
-                    <h2 className="text-2xl font-display font-bold text-white/90">Gestión de Flujo</h2>
-                    <p className="text-[10px] font-mono text-white/30 uppercase tracking-[0.2em]">Tablero & Temporalidad</p>
+                    <h2 className="text-2xl font-display font-bold text-white/90">
+                      Gestión de Flujo
+                    </h2>
+                    <p className="text-[10px] font-mono text-white/30 uppercase tracking-[0.2em]">
+                      Tablero & Temporalidad
+                    </p>
                   </div>
                   <div className="flex items-center gap-2 bg-white/[0.03] border border-white/[0.05] p-1 rounded-xl">
                     <button
-                      onClick={() => setKanbanViewMode('kanban')}
-                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-mono uppercase tracking-widest transition-all ${kanbanViewMode === 'kanban' ? 'bg-flow-accent/20 text-flow-accent shadow-[0_0_15px_rgba(59,130,246,0.2)]' : 'text-white/30 hover:text-white/60'}`}
+                      onClick={() => setKanbanViewMode("kanban")}
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-mono uppercase tracking-widest transition-all ${kanbanViewMode === "kanban" ? "bg-flow-accent/20 text-flow-accent shadow-[0_0_15px_rgba(59,130,246,0.2)]" : "text-white/30 hover:text-white/60"}`}
                     >
                       <LayoutGrid className="w-3.5 h-3.5" />
                       Tablero
                     </button>
                     <button
-                      onClick={() => setKanbanViewMode('calendar')}
-                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-mono uppercase tracking-widest transition-all ${kanbanViewMode === 'calendar' ? 'bg-flow-accent/20 text-flow-accent shadow-[0_0_15px_rgba(59,130,246,0.2)]' : 'text-white/30 hover:text-white/60'}`}
+                      onClick={() => setKanbanViewMode("calendar")}
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-mono uppercase tracking-widest transition-all ${kanbanViewMode === "calendar" ? "bg-flow-accent/20 text-flow-accent shadow-[0_0_15px_rgba(59,130,246,0.2)]" : "text-white/30 hover:text-white/60"}`}
                     >
                       <Calendar className="w-3.5 h-3.5" />
                       Calendario
@@ -1005,7 +1062,7 @@ function Dashboard() {
                 </div>
 
                 <AnimatePresence mode="wait">
-                  {kanbanViewMode === 'kanban' ? (
+                  {kanbanViewMode === "kanban" ? (
                     <motion.div
                       key="kanban-grid"
                       initial={{ opacity: 0, x: -10 }}
@@ -1116,7 +1173,7 @@ function Dashboard() {
                   <div className="w-72 rotate-1 scale-[1.02] shadow-2xl shadow-black/50">
                     <KanbanCard
                       task={activeTask}
-                      onClick={() => { }}
+                      onClick={() => {}}
                       projects={projects}
                     />
                   </div>
@@ -1216,19 +1273,21 @@ function Dashboard() {
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => setWeekStartsOn(1)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${weekStartsOn === 1
-                        ? "bg-flow-accent text-white"
-                        : "bg-white/5 text-white/40 hover:text-white/70"
-                        }`}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                        weekStartsOn === 1
+                          ? "bg-flow-accent text-white"
+                          : "bg-white/5 text-white/40 hover:text-white/70"
+                      }`}
                     >
                       Lunes
                     </button>
                     <button
                       onClick={() => setWeekStartsOn(0)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${weekStartsOn === 0
-                        ? "bg-flow-accent text-white"
-                        : "bg-white/5 text-white/40 hover:text-white/70"
-                        }`}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                        weekStartsOn === 0
+                          ? "bg-flow-accent text-white"
+                          : "bg-white/5 text-white/40 hover:text-white/70"
+                      }`}
                     >
                       Domingo
                     </button>
@@ -1282,11 +1341,19 @@ function Dashboard() {
               <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl">
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-full bg-flow-accent/15 border border-flow-accent/25 flex items-center justify-center">
-                    <span className="text-[11px] font-mono font-bold text-flow-accent">{userInitial}</span>
+                    <span className="text-[11px] font-mono font-bold text-flow-accent">
+                      {userInitial}
+                    </span>
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-white/70">{userName}</p>
-                    {userEmail && <p className="text-[10px] text-white/30 font-mono">{userEmail}</p>}
+                    <p className="text-sm font-medium text-white/70">
+                      {userName}
+                    </p>
+                    {userEmail && (
+                      <p className="text-[10px] text-white/30 font-mono">
+                        {userEmail}
+                      </p>
+                    )}
                   </div>
                 </div>
                 <button
@@ -1369,10 +1436,11 @@ function Dashboard() {
                         setProjectDraft((prev) => ({ ...prev, color }))
                       }
                       disabled={isSavingProject}
-                      className={`w-7 h-7 rounded-full border-2 transition-all ${projectDraft.color === color
-                        ? "border-white scale-110"
-                        : "border-white/20 hover:border-white/60"
-                        }`}
+                      className={`w-7 h-7 rounded-full border-2 transition-all ${
+                        projectDraft.color === color
+                          ? "border-white scale-110"
+                          : "border-white/20 hover:border-white/60"
+                      }`}
                       style={{ backgroundColor: color }}
                       title={color}
                     />
@@ -1656,7 +1724,7 @@ function Dashboard() {
             >
               {item.label}
             </span>
-          )
+          ),
         )}
         <span className="ml-1 text-white/20 text-xs font-mono">
           para capturar
@@ -1714,13 +1782,15 @@ function NavButton({
   return (
     <button
       onClick={onClick}
-      className={`p-3 rounded-full transition-all relative group ${active
-        ? "bg-flow-accent text-white"
-        : "text-white/40 hover:text-white hover:bg-white/5"
-        } ${highlight && !active
+      className={`p-3 rounded-full transition-all relative group ${
+        active
+          ? "bg-flow-accent text-white"
+          : "text-white/40 hover:text-white hover:bg-white/5"
+      } ${
+        highlight && !active
           ? "ring-2 ring-flow-accent/80 shadow-[0_0_22px_rgba(59,130,246,0.75)]"
           : ""
-        }`}
+      }`}
     >
       <motion.div
         animate={
@@ -1833,14 +1903,16 @@ function KanbanColumn({
 
   return (
     <div
-      className={`flex-shrink-0 w-72 flex flex-col rounded-xl transition-colors duration-200 ${highlighted && isDragging ? "bg-white/[0.03]" : ""
-        }`}
+      className={`flex-shrink-0 w-72 flex flex-col rounded-xl transition-colors duration-200 ${
+        highlighted && isDragging ? "bg-white/[0.03]" : ""
+      }`}
     >
       {/* Column header - Notion style */}
       <div className="flex items-center gap-2 px-2 pb-3 mb-1">
         <div
-          className={`w-2.5 h-2.5 rounded-sm flex-shrink-0 transition-transform duration-200 ${highlighted && isDragging ? "scale-125" : ""
-            }`}
+          className={`w-2.5 h-2.5 rounded-sm flex-shrink-0 transition-transform duration-200 ${
+            highlighted && isDragging ? "scale-125" : ""
+          }`}
           style={{ backgroundColor: color }}
         />
         {getStatusIcon(id)}
@@ -1852,10 +1924,11 @@ function KanbanColumn({
         )}
         <button
           onClick={() => onToggleColumnSelect(taskIds)}
-          className={`p-1 rounded-md transition-all ${allSelected
-            ? "text-flow-accent bg-flow-accent/10"
-            : "text-white/25 hover:text-white/60 hover:bg-white/5"
-            }`}
+          className={`p-1 rounded-md transition-all ${
+            allSelected
+              ? "text-flow-accent bg-flow-accent/10"
+              : "text-white/25 hover:text-white/60 hover:bg-white/5"
+          }`}
           title={allSelected ? "Deseleccionar columna" : "Seleccionar columna"}
         >
           {allSelected ? (
@@ -1870,8 +1943,9 @@ function KanbanColumn({
           </span>
         )}
         <span
-          className={`text-[11px] font-mono ml-auto transition-colors duration-200 ${highlighted && isDragging ? "text-white/50" : "text-white/25"
-            }`}
+          className={`text-[11px] font-mono ml-auto transition-colors duration-200 ${
+            highlighted && isDragging ? "text-white/50" : "text-white/25"
+          }`}
         >
           {tasks.length}
         </span>
@@ -1880,12 +1954,13 @@ function KanbanColumn({
       {/* Cards container */}
       <div
         ref={setNodeRef}
-        className={`flex-1 space-y-2 min-h-[500px] pb-20 px-1 rounded-lg transition-all duration-200 ${highlighted && isDragging
-          ? "ring-1 ring-white/10 bg-white/[0.02]"
-          : isDragging
-            ? "ring-1 ring-transparent"
-            : ""
-          }`}
+        className={`flex-1 space-y-2 min-h-[500px] pb-20 px-1 rounded-lg transition-all duration-200 ${
+          highlighted && isDragging
+            ? "ring-1 ring-white/10 bg-white/[0.02]"
+            : isDragging
+              ? "ring-1 ring-transparent"
+              : ""
+        }`}
       >
         <SortableContext
           items={tasks.map((t) => t.id)}
@@ -1921,12 +1996,14 @@ function KanbanColumn({
         {/* Drop hint when dragging over empty column */}
         {tasks.length === 0 && isDragging && (
           <div
-            className={`flex items-center justify-center py-10 rounded-lg border border-dashed transition-all duration-200 ${highlighted ? "border-white/20 bg-white/[0.03]" : "border-white/5"
-              }`}
+            className={`flex items-center justify-center py-10 rounded-lg border border-dashed transition-all duration-200 ${
+              highlighted ? "border-white/20 bg-white/[0.03]" : "border-white/5"
+            }`}
           >
             <p
-              className={`text-[11px] transition-colors duration-200 ${highlighted ? "text-white/40" : "text-white/10"
-                }`}
+              className={`text-[11px] transition-colors duration-200 ${
+                highlighted ? "text-white/40" : "text-white/10"
+              }`}
             >
               Soltar aquí
             </p>
