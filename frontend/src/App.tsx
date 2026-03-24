@@ -819,8 +819,16 @@ function Dashboard() {
             >
               {/* Drop Zones */}
               <div className="absolute top-20 md:top-8 left-1/2 -translate-x-1/2 flex gap-4 md:gap-8 z-10 scale-90 md:scale-100">
-                <DropZone label="Hoy" color="bg-emerald-500/10" />
-                <DropZone label="Luego" color="bg-amber-500/10" />
+                <DropZone
+                  ref={dropZoneHoyRef}
+                  label="Hoy"
+                  color="bg-emerald-500/10"
+                />
+                <DropZone
+                  ref={dropZoneLuegoRef}
+                  label="Luego"
+                  color="bg-amber-500/10"
+                />
               </div>
 
               {tasks
@@ -833,6 +841,8 @@ function Dashboard() {
                     onComplete={handleTaskComplete}
                     onDelete={handleTaskDelete}
                     onDrop={handleTaskDrop}
+                    dropZoneHoyRef={dropZoneHoyRef}
+                    dropZoneLuegoRef={dropZoneLuegoRef}
                   />
                 ))}
 
@@ -1809,9 +1819,13 @@ function NavButton({
   );
 }
 
-function DropZone({ label, color }: { label: string; color: string }) {
+const DropZone = React.forwardRef<
+  HTMLDivElement,
+  { label: string; color: string }
+>(({ label, color }, ref) => {
   return (
     <div
+      ref={ref}
       className={`px-10 py-6 rounded-2xl border-2 border-dashed border-white/10 ${color} flex flex-col items-center justify-center min-w-[180px] backdrop-blur-sm transition-all hover:border-white/20`}
     >
       <span className="text-[10px] opacity-30 uppercase tracking-widest mb-1">
@@ -1822,7 +1836,7 @@ function DropZone({ label, color }: { label: string; color: string }) {
       </span>
     </div>
   );
-}
+});
 
 function KanbanColumn({
   id,

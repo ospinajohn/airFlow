@@ -3,12 +3,15 @@ import { motion, useAnimation } from "motion/react";
 import { Trash2, Clock } from "lucide-react";
 import { Task } from "../types";
 
+// DESPUÉS
 interface BubbleProps {
   task: Task;
   onComplete: (id: string) => void;
   onDelete: (id: string) => void;
   onFocus: (task: Task) => void;
   onDrop: (id: string, zone: "hoy" | "luego") => void;
+  dropZoneHoyRef?: React.RefObject<HTMLDivElement>;
+  dropZoneLuegoRef?: React.RefObject<HTMLDivElement>;
 }
 
 export const TaskBubble: React.FC<BubbleProps> = ({
@@ -17,6 +20,8 @@ export const TaskBubble: React.FC<BubbleProps> = ({
   onDelete,
   onFocus,
   onDrop,
+  dropZoneHoyRef,
+  dropZoneLuegoRef,
 }) => {
   const controls = useAnimation();
   const bubbleRef = useRef<HTMLDivElement>(null);
@@ -112,7 +117,12 @@ export const TaskBubble: React.FC<BubbleProps> = ({
 
     const dragDistance = Math.hypot(info.offset.x, info.offset.y);
 
-    // Get pointer position from multiple sources for reliability
+    const pointerX =
+      info.point?.x ??
+      event?.clientX ??
+      event?.changedTouches?.[0]?.clientX ??
+      0;
+
     const pointerY =
       info.point?.y ??
       event?.clientY ??
@@ -120,30 +130,75 @@ export const TaskBubble: React.FC<BubbleProps> = ({
       (bubbleRef.current
         ? bubbleRef.current.getBoundingClientRect().top + info.offset.y
         : Infinity);
-    const pointerX =
-      info.point?.x ??
-      event?.clientX ??
-      event?.changedTouches?.[0]?.clientX ??
-      0;
 
-    // Drop zone: top 40% of viewport (generous to be forgiving)
-    const dropThreshold = window.innerHeight * 0.4;
+    // Movimiento muy pequeño = tap, no drop
+    if (dragDistance < 20) {
+      controls.start({
+        scale: 1,
+        opacity: 1,
+        transition: { type: "spring", stiffness: 300, damping: 25 },
+      });
+      return;
+    }
 
-    if (dragDistance > 20 && pointerY < dropThreshold) {
-      const mid = window.innerWidth / 2;
+    // Detecta colisión contra las coordenadas reales de cada zona
+    const isOverZone = (ref?: React.RefObject<HTMLDivElement>) => {
+      if (!ref?.current) return false;
+      const rect = ref.current.getBoundingClientRect();
+      const margin = 64;
 
+      // Check 1: posición del puntero al soltar
+      const pointerMatch =
+        pointerX >= rect.left - margin &&
+        pointerX <= rect.right + margin &&
+        pointerY >= rect.top - margin &&
+        pointerY <= rect.bottom + margin;
+
+      // Check 2: centro real de la burbuja con offset del drag
+      const bubbleMatch = bubbleRef.current
+        ? (() => {
+            const original = bubbleRef.current!.getBoundingClientRect();
+            const realCenterX =
+              original.left + original.width / 2 + info.offset.x;
+            const realCenterY =
+              original.top + original.height / 2 + info.offset.y;
+            return (
+              realCenterX >= rect.left - margin &&
+              realCenterX <= rect.right + margin &&
+              realCenterY >= rect.top - margin &&
+              realCenterY <= rect.bottom + margin
+            );
+          })()
+        : false;
+
+      // Check 3: posición visual estimada usando point - mitad del tamaño
+      const halfSize =
+        (bubbleRef.current?.getBoundingClientRect().width ?? 100) / 2;
+      const visualMatch =
+        pointerX >= rect.left - halfSize &&
+        pointerX <= rect.right + halfSize &&
+        pointerY >= rect.top - halfSize &&
+        pointerY <= rect.bottom + halfSize;
+
+      return pointerMatch || bubbleMatch || visualMatch;
+    };
+
+    if (isOverZone(dropZoneHoyRef)) {
       controls.start({
         scale: 0,
         opacity: 0,
         transition: { duration: 0.2, ease: "backIn" },
       });
-
-      if (pointerX < mid) {
-        onDrop(task.id, "hoy");
-      } else {
-        onDrop(task.id, "luego");
-      }
+      onDrop(task.id, "hoy");
+    } else if (isOverZone(dropZoneLuegoRef)) {
+      controls.start({
+        scale: 0,
+        opacity: 0,
+        transition: { duration: 0.2, ease: "backIn" },
+      });
+      onDrop(task.id, "luego");
     } else {
+      // No cayó en ninguna zona — rebota
       controls.start({
         scale: 1,
         opacity: 1,
