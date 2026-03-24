@@ -2,10 +2,10 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "airFlow Dev Server",
+      "name": "airFlow Frontend",
       "runtimeExecutable": "node",
-      "runtimeArgs": ["./node_modules/tsx/dist/cli.mjs", "server.ts"],
-      "port": 3001
+      "runtimeArgs": ["--input-type=module", "-e", "import {pathToFileURL} from 'node:url'; process.chdir('frontend'); await import(pathToFileURL(process.cwd()+'/node_modules/vite/bin/vite.js').href)"],
+      "port": 5173
     }
   ]
 }
