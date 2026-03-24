@@ -1,0 +1,123 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@300;400;600;700;800&family=JetBrains+Mono&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Outfit", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+
+  --color-flow-bg: #030303;
+  --color-flow-card: #0a0a0a;
+  --color-flow-accent: #3b82f6;
+}
+
+@layer base {
+  body {
+    @apply bg-flow-bg text-white font-sans antialiased overflow-hidden selection:bg-flow-accent selection:text-white;
+  }
+}
+
+.glass {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(24px) saturate(1.2);
+  -webkit-backdrop-filter: blur(24px) saturate(1.2);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 
+    0 4px 30px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.glass-strong {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(32px) saturate(1.3);
+  -webkit-backdrop-filter: blur(32px) saturate(1.3);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+/* Base minimum size for touch targets (Web Interface Guidelines) */
+.min-touch-target {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+.bubble-shadow {
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.2);
+}
+
+/* Ambient background orbs */
+@keyframes orb-float-1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  25% { transform: translate(60px, -40px) scale(1.1); }
+  50% { transform: translate(-30px, 50px) scale(0.95); }
+  75% { transform: translate(-50px, -20px) scale(1.05); }
+}
+
+@keyframes orb-float-2 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  25% { transform: translate(-50px, 30px) scale(1.05); }
+  50% { transform: translate(40px, -60px) scale(0.9); }
+  75% { transform: translate(20px, 40px) scale(1.1); }
+}
+
+@keyframes orb-float-3 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(70px, 30px) scale(1.08); }
+  66% { transform: translate(-40px, -50px) scale(0.95); }
+}
+
+.ambient-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.12;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.ambient-orb-1 {
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, #3b82f6 0%, transparent 70%);
+  top: 10%;
+  left: 15%;
+  animation: orb-float-1 25s ease-in-out infinite;
+}
+
+.ambient-orb-2 {
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(circle, #8b5cf6 0%, transparent 70%);
+  top: 50%;
+  right: 10%;
+  animation: orb-float-2 30s ease-in-out infinite;
+}
+
+.ambient-orb-3 {
+  width: 350px;
+  height: 350px;
+  background: radial-gradient(circle, #06b6d4 0%, transparent 70%);
+  bottom: 15%;
+  left: 40%;
+  animation: orb-float-3 20s ease-in-out infinite;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Focus mode ambient pulse */
+@keyframes ambient-pulse {
+  0%, 100% { opacity: 0.03; transform: scale(1); }
+  50% { opacity: 0.08; transform: scale(1.02); }
+}
+
+.focus-ambient-pulse {
+  animation: ambient-pulse 4s ease-in-out infinite;
+}
