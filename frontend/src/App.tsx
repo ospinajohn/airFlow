@@ -100,6 +100,7 @@ function Dashboard() {
   const [autoStartPomodoro, setAutoStartPomodoro] = useState(false);
   const [showKanbanHealthCheck, setShowKanbanHealthCheck] = useState(false);
   const [weekStartsOn, setWeekStartsOn] = useState<0 | 1>(1);
+  const [vibrationEnabled, setVibrationEnabled] = useState(true);
   const [theme, setTheme] = useState<"dark" | "light" | "system">("dark");
 
   // Sincronizar estados locales con settings del AuthContext
@@ -108,6 +109,7 @@ function Dashboard() {
       setAutoStartPomodoro(settings.autoStartPomodoro);
       setShowKanbanHealthCheck(settings.showKanbanHealthCheck);
       setWeekStartsOn(settings.weekStartsOn as 0 | 1);
+      setVibrationEnabled(settings.vibrationEnabled);
       if (
         settings.theme === "dark" ||
         settings.theme === "light" ||
@@ -209,6 +211,16 @@ function Dashboard() {
       await updateSettings({ theme: nextTheme });
     } catch (e) {
       setTheme(previousTheme);
+    }
+  };
+
+  const handleToggleVibration = async () => {
+    const newVal = !vibrationEnabled;
+    setVibrationEnabled(newVal);
+    try {
+      await updateSettings({ vibrationEnabled: newVal });
+    } catch (e) {
+      setVibrationEnabled(!newVal);
     }
   };
 
@@ -1401,6 +1413,26 @@ function Dashboard() {
                   >
                     <motion.div
                       animate={{ x: showKanbanHealthCheck ? 24 : 4 }}
+                      className="absolute top-1 w-4 h-4 rounded-full bg-white shadow-sm"
+                    />
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl">
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium">
+                      Vibración y feedback háptico
+                    </p>
+                    <p className="text-xs text-white/40">
+                      Activa la vibración en acciones compatibles del flujo
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleToggleVibration}
+                    className={`w-12 h-6 rounded-full transition-colors relative ${vibrationEnabled ? "bg-flow-accent" : "bg-white/10"}`}
+                  >
+                    <motion.div
+                      animate={{ x: vibrationEnabled ? 24 : 4 }}
                       className="absolute top-1 w-4 h-4 rounded-full bg-white shadow-sm"
                     />
                   </button>

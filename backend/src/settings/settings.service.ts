@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
+import { UpdateSettingsDto } from './dto/update-settings.dto';
 
 @Injectable()
 export class SettingsService {
@@ -27,19 +28,35 @@ export class SettingsService {
     return settings;
   }
 
-  async update(userId: string, data: any) {
+  async update(userId: string, data: UpdateSettingsDto) {
+    const updateData: Prisma.UserSettingsUpdateInput = {};
+
+    if (data.autoStartPomodoro !== undefined) {
+      updateData.autoStartPomodoro = data.autoStartPomodoro;
+    }
+    if (data.showKanbanHealthCheck !== undefined) {
+      updateData.showKanbanHealthCheck = data.showKanbanHealthCheck;
+    }
+    if (data.weekStartsOn !== undefined) {
+      updateData.weekStartsOn = data.weekStartsOn;
+    }
+    if (data.vibrationEnabled !== undefined) {
+      updateData.vibrationEnabled = data.vibrationEnabled;
+    }
+    if (data.theme !== undefined) {
+      updateData.theme = data.theme;
+    }
+
     return this.prisma.userSettings.upsert({
       where: { userId },
-      update: {
-        autoStartPomodoro: data.autoStartPomodoro,
-        showKanbanHealthCheck: data.showKanbanHealthCheck,
-        weekStartsOn: data.weekStartsOn,
-        vibrationEnabled: data.vibrationEnabled,
-        theme: data.theme,
-      },
+      update: updateData,
       create: {
         userId,
-        ...data,
+        autoStartPomodoro: data.autoStartPomodoro ?? false,
+        showKanbanHealthCheck: data.showKanbanHealthCheck ?? true,
+        weekStartsOn: data.weekStartsOn ?? 1,
+        vibrationEnabled: data.vibrationEnabled ?? true,
+        theme: data.theme ?? 'dark',
       },
     });
   }
