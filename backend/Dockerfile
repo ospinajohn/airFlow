@@ -12,6 +12,7 @@ COPY prisma.config.ts ./
 RUN npm ci
 RUN npx prisma generate
 RUN npm run build
+RUN ls -la /app/dist/ || echo "dist/ NO EXISTE"
 
 EXPOSE 3000
 
