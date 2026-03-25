@@ -16,4 +16,4 @@ RUN ls -la /app/dist/ || echo "dist/ NO EXISTE"
 
 EXPOSE 3000
 
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main.js"]
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/src/main.js"]
