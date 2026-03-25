@@ -1,7 +1,10 @@
 [build]
-buildCommand = "npm ci && npx prisma generate"
+buildCommand = "npm ci && npx prisma generate && npm run build"
 
 [deploy]
-startCommand = "npm run build && npx prisma migrate deploy && node dist/main.js"
+startCommand = "npx prisma migrate deploy && node dist/main.js"
 healthcheckPath = "/api"
 restartPolicyType = "on_failure"
+
+[build.cache]
+paths = ["node_modules", "dist"]
