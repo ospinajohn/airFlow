@@ -1,22 +1,25 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { Command } from 'lucide-react';
-import { parseTaskInputLocally } from '../services/nlpService';
-import { Task, NLPResult, Project, TaskStatus } from '../types';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
+import React, { useState, useEffect, useRef } from "react";
+import { motion, AnimatePresence } from "motion/react";
+import { Command } from "lucide-react";
+import { parseTaskInputLocally } from "../services/nlpService";
+import { Task, NLPResult, Project, TaskStatus } from "../types";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
 
 interface CommandBarProps {
   onTaskCreated: (task: Partial<Task>) => void;
   projects?: Project[];
 }
 
-export const CommandBar: React.FC<CommandBarProps> = ({ onTaskCreated, projects = [] }) => {
+export const CommandBar: React.FC<CommandBarProps> = ({
+  onTaskCreated,
+  projects = [],
+}) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [input, setInput] = useState('');
+  const [input, setInput] = useState("");
   const [isParsing, setIsParsing] = useState(false);
   const [preview, setPreview] = useState<NLPResult | null>(null);
-  const [quickStatus, setQuickStatus] = useState<TaskStatus>('backlog');
+  const [quickStatus, setQuickStatus] = useState<TaskStatus>("backlog");
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -29,16 +32,19 @@ export const CommandBar: React.FC<CommandBarProps> = ({ onTaskCreated, projects 
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && (e.code === 'Space' || e.key.toLowerCase() === 'k')) {
+      if (
+        (e.ctrlKey || e.metaKey) &&
+        (e.code === "Space" || e.key.toLowerCase() === "k")
+      ) {
         e.preventDefault();
-        setIsOpen(prev => !prev);
+        setIsOpen((prev) => !prev);
       }
-      if (e.key === 'Escape') {
+      if (e.key === "Escape") {
         setIsOpen(false);
       }
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
   useEffect(() => {
@@ -55,9 +61,11 @@ export const CommandBar: React.FC<CommandBarProps> = ({ onTaskCreated, projects 
     // Local parsing is synchronous and free!
     const parsed = parseTaskInputLocally(input);
     const lowerInput = input.toLowerCase();
-    const matchedProject = projects.find((p) => lowerInput.includes(p.name.toLowerCase()));
-    const inferredStatus = lowerInput.includes('hoy') ? 'todo' : quickStatus;
-    
+    const matchedProject = projects.find((p) =>
+      lowerInput.includes(p.name.toLowerCase()),
+    );
+    const inferredStatus = lowerInput.includes("hoy") ? "todo" : quickStatus;
+
     onTaskCreated({
       title: parsed.title,
       dueDate: parsed.dueDate,
@@ -66,7 +74,7 @@ export const CommandBar: React.FC<CommandBarProps> = ({ onTaskCreated, projects 
       projectId: matchedProject?.id,
     });
 
-    setInput('');
+    setInput("");
     setIsParsing(false);
     setIsOpen(false);
   };
@@ -96,12 +104,18 @@ export const CommandBar: React.FC<CommandBarProps> = ({ onTaskCreated, projects 
                 {isParsing ? (
                   <motion.div
                     animate={{ rotate: 360 }}
-                    transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
+                    transition={{
+                      repeat: Infinity,
+                      duration: 1,
+                      ease: "linear",
+                    }}
                     className="w-5 h-5 border-2 border-flow-accent border-t-transparent rounded-full"
                   />
                 ) : (
                   <div className="flex items-center gap-2 text-xs text-white/20 font-mono">
-                    <span className="px-1.5 py-0.5 rounded border border-white/10">ENTER</span>
+                    <span className="px-1.5 py-0.5 rounded border border-white/10">
+                      ENTER
+                    </span>
                   </div>
                 )}
               </div>
@@ -109,39 +123,48 @@ export const CommandBar: React.FC<CommandBarProps> = ({ onTaskCreated, projects 
               <div className="mt-3 flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => setQuickStatus('todo')}
+                  onClick={() => setQuickStatus("todo")}
                   className={`px-2.5 py-1 rounded-md text-[10px] font-mono uppercase tracking-wider transition-all ${
-                    quickStatus === 'todo'
-                      ? 'bg-flow-accent text-white'
-                      : 'bg-white/5 text-white/40 hover:text-white/70'
+                    quickStatus === "todo"
+                      ? "bg-flow-accent text-white"
+                      : "bg-white/5 text-white/40 hover:text-white/70"
                   }`}
                 >
                   Hoy
                 </button>
                 <button
                   type="button"
-                  onClick={() => setQuickStatus('backlog')}
+                  onClick={() => setQuickStatus("backlog")}
                   className={`px-2.5 py-1 rounded-md text-[10px] font-mono uppercase tracking-wider transition-all ${
-                    quickStatus === 'backlog'
-                      ? 'bg-flow-accent text-white'
-                      : 'bg-white/5 text-white/40 hover:text-white/70'
+                    quickStatus === "backlog"
+                      ? "bg-flow-accent text-white"
+                      : "bg-white/5 text-white/40 hover:text-white/70"
                   }`}
                 >
                   Luego
                 </button>
-                <span className="ml-auto text-[10px] text-white/25 font-mono">Ctrl/Cmd + K</span>
+                <span className="ml-auto text-[10px] text-white/25 font-mono">
+                  Ctrl/Cmd + K
+                </span>
               </div>
 
               {preview && preview.dueDate && (
-                <motion.div 
+                <motion.div
                   initial={{ opacity: 0, y: 5 }}
                   animate={{ opacity: 1, y: 0 }}
                   className="mt-3 pt-3 border-t border-white/5 flex items-center gap-2 text-xs text-white/40"
                 >
                   <div className="w-1.5 h-1.5 rounded-full bg-flow-accent animate-pulse" />
                   <span>Se programará para: </span>
-                  <span className="text-white/60 font-medium">
-                    {format(new Date(preview.dueDate), "EEEE d 'de' MMMM, HH:mm", { locale: es })}
+                  <span className="text-white/60 font-medium lowercase">
+                    {format(new Date(preview.dueDate), "EEEE d 'de' MMMM", {
+                      locale: es,
+                    })}
+                    {input.match(/\d+/) && (
+                      <span className="ml-1 text-flow-accent">
+                        a las {format(new Date(preview.dueDate), "HH:mm")}
+                      </span>
+                    )}
                   </span>
                   {preview.priority === 3 && (
                     <span className="ml-auto px-2 py-0.5 rounded bg-red-500/20 text-red-400 text-[10px] font-bold uppercase tracking-wider">
@@ -159,8 +182,13 @@ export const CommandBar: React.FC<CommandBarProps> = ({ onTaskCreated, projects 
                 >
                   <div className="w-1.5 h-1.5 rounded-full bg-flow-accent/70" />
                   <span>Destino:</span>
-                  <span className="text-white/70 font-medium">{quickStatus === 'todo' ? 'Hoy' : 'Luego'}</span>
-                  <span className="ml-3">Tip: escribe el nombre del proyecto para asignarlo automáticamente.</span>
+                  <span className="text-white/70 font-medium">
+                    {quickStatus === "todo" ? "Hoy" : "Luego"}
+                  </span>
+                  <span className="ml-3">
+                    Tip: escribe el nombre del proyecto para asignarlo
+                    automáticamente.
+                  </span>
                 </motion.div>
               )}
             </form>
