@@ -2,7 +2,7 @@ import * as chrono from "chrono-node";
 import { NLPResult } from "../types";
 
 export function parseTaskInputLocally(input: string): NLPResult {
-  const results = chrono.es.parse(input);
+  const results = chrono.es.parse(input, new Date(), { forwardDate: true }); // 👈 esto
 
   let dueDate: string | undefined;
   let title = input;
@@ -11,13 +11,11 @@ export function parseTaskInputLocally(input: string): NLPResult {
     const result = results[0];
     const date = result.start.date();
 
-    // Si chrono no detectó hora explícita, forzar las 9:00am
     const hasExplicitTime = result.start.isCertain("hour");
     if (!hasExplicitTime) {
       date.setHours(9, 0, 0, 0);
     }
 
-    // Usar formato ISO completo para que el backend/frontend puedan manejarlo consistentemente
     const pad = (n: number) => n.toString().padStart(2, "0");
     dueDate = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:00`;
 
