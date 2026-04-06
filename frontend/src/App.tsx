@@ -185,15 +185,16 @@ function Dashboard() {
     }
   };
 
-  const handleToggleKanbanHealth = async () => {
-    const newVal = !showKanbanHealthCheck;
-    setShowKanbanHealthCheck(newVal);
-    try {
-      await updateSettings({ showKanbanHealthCheck: newVal });
-    } catch (e) {
-      setShowKanbanHealthCheck(!newVal);
-    }
-  };
+  // Feature paused for now: Health Check panel in Kanban.
+  // const handleToggleKanbanHealth = async () => {
+  //   const newVal = !showKanbanHealthCheck;
+  //   setShowKanbanHealthCheck(newVal);
+  //   try {
+  //     await updateSettings({ showKanbanHealthCheck: newVal });
+  //   } catch (e) {
+  //     setShowKanbanHealthCheck(!newVal);
+  //   }
+  // };
 
   const handleChangeWeekStart = async (val: 0 | 1) => {
     setWeekStartsOn(val);
@@ -1098,38 +1099,6 @@ function Dashboard() {
                 )}
               </AnimatePresence>
 
-              {showKanbanHealthCheck && (
-                <div className="hidden md:block fixed top-6 right-8 z-40 w-64 glass rounded-2xl p-3 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <p className="text-[10px] font-mono uppercase tracking-widest text-white/35">
-                      Health Check
-                    </p>
-                    <span className="text-[10px] text-flow-accent/80">
-                      Tablero
-                    </span>
-                  </div>
-                  {healthItems.map((item) => {
-                    const isHealthy = item.value <= item.threshold;
-                    return (
-                      <div
-                        key={item.key}
-                        className="flex items-center justify-between text-[11px] py-1 border-b border-white/5 last:border-b-0"
-                      >
-                        <span className="text-white/55">{item.label}</span>
-                        <span
-                          className={
-                            isHealthy ? "text-emerald-300" : "text-amber-300"
-                          }
-                        >
-                          {item.value} ·{" "}
-                          {isHealthy ? item.okText : item.warnText}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
               <motion.div
                 key="kanban-container"
                 initial={{ opacity: 0, y: 20 }}
@@ -1138,7 +1107,7 @@ function Dashboard() {
                 className="h-full flex flex-col gap-6 md:pl-24 pt-24 md:pt-8 pr-6 pb-32 md:pb-14"
               >
                 {/* Kanban Header with View Switcher */}
-                <div className="flex items-center justify-between px-6 md:px-0">
+                <div className="flex items-start justify-between gap-4 px-6 md:px-0">
                   <div className="flex flex-col">
                     <h2 className="text-2xl font-display font-bold text-white/90">
                       Gestión de Flujo
@@ -1147,21 +1116,25 @@ function Dashboard() {
                       Tablero & Temporalidad
                     </p>
                   </div>
-                  <div className="flex items-center gap-2 bg-white/[0.03] border border-white/[0.05] p-1 rounded-xl">
-                    <button
-                      onClick={() => setKanbanViewMode("kanban")}
-                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-mono uppercase tracking-widest transition-all ${kanbanViewMode === "kanban" ? "bg-flow-accent/20 text-flow-accent shadow-[0_0_15px_rgba(59,130,246,0.2)]" : "text-white/30 hover:text-white/60"}`}
-                    >
-                      <LayoutGrid className="w-3.5 h-3.5" />
-                      Tablero
-                    </button>
-                    <button
-                      onClick={() => setKanbanViewMode("calendar")}
-                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-mono uppercase tracking-widest transition-all ${kanbanViewMode === "calendar" ? "bg-flow-accent/20 text-flow-accent shadow-[0_0_15px_rgba(59,130,246,0.2)]" : "text-white/30 hover:text-white/60"}`}
-                    >
-                      <Calendar className="w-3.5 h-3.5" />
-                      Calendario
-                    </button>
+                  <div className="flex items-start gap-3">
+                    <div className="flex items-center gap-2 bg-white/[0.03] border border-white/[0.05] p-1 rounded-xl">
+                      <button
+                        onClick={() => setKanbanViewMode("kanban")}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-mono uppercase tracking-widest transition-all ${kanbanViewMode === "kanban" ? "bg-flow-accent/20 text-flow-accent shadow-[0_0_15px_rgba(59,130,246,0.2)]" : "text-white/30 hover:text-white/60"}`}
+                      >
+                        <LayoutGrid className="w-3.5 h-3.5" />
+                        Tablero
+                      </button>
+                      <button
+                        onClick={() => setKanbanViewMode("calendar")}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-mono uppercase tracking-widest transition-all ${kanbanViewMode === "calendar" ? "bg-flow-accent/20 text-flow-accent shadow-[0_0_15px_rgba(59,130,246,0.2)]" : "text-white/30 hover:text-white/60"}`}
+                      >
+                        <Calendar className="w-3.5 h-3.5" />
+                        Calendario
+                      </button>
+                    </div>
+
+                    {/* Feature paused: Health Check panel in Kanban */}
                   </div>
                 </div>
 
@@ -1398,25 +1371,7 @@ function Dashboard() {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl">
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium">
-                      Panel Health Check en Kanban
-                    </p>
-                    <p className="text-xs text-white/40">
-                      Muestra el panel fijo de métricas operativas en el tablero
-                    </p>
-                  </div>
-                  <button
-                    onClick={handleToggleKanbanHealth}
-                    className={`w-12 h-6 rounded-full transition-colors relative ${showKanbanHealthCheck ? "bg-flow-accent" : "bg-white/10"}`}
-                  >
-                    <motion.div
-                      animate={{ x: showKanbanHealthCheck ? 24 : 4 }}
-                      className="absolute top-1 w-4 h-4 rounded-full bg-white shadow-sm"
-                    />
-                  </button>
-                </div>
+                {/* Feature paused: opción de Health Check en Kanban */}
 
                 <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl">
                   <div className="space-y-1">
