@@ -41,7 +41,58 @@ interface FocusModeProps {
   onComplete: (id: string) => void;
   onUpdate: (id: string, updates: Partial<Task>) => Promise<void> | void;
   autoStart: boolean;
+  pomodoro: {
+    workDuration: number;
+    shortBreakDuration: number;
+    longBreakDuration: number;
+    cyclesUntilLongBreak: number;
+    autoStartBreaks: boolean;
+  };
 }
+
+type PomodoroPhase = "work" | "shortBreak" | "longBreak";
+
+const POMODORO_PHASE_LABELS: Record<PomodoroPhase, string> = {
+  work: "Trabajo",
+  shortBreak: "Descanso corto",
+  longBreak: "Descanso largo",
+};
+
+const getPhaseDurationSeconds = (
+  phase: PomodoroPhase,
+  pomodoro: FocusModeProps["pomodoro"],
+) => {
+  if (phase === "work") return pomodoro.workDuration * 60;
+  if (phase === "shortBreak") return pomodoro.shortBreakDuration * 60;
+  return pomodoro.longBreakDuration * 60;
+};
+
+const getNextPhase = (
+  currentPhase: PomodoroPhase,
+  completedWorkCycles: number,
+  pomodoro: FocusModeProps["pomodoro"],
+) => {
+  if (currentPhase === "work") {
+    const nextCompletedCycles = completedWorkCycles + 1;
+    const isLongBreak = nextCompletedCycles >= pomodoro.cyclesUntilLongBreak;
+    return {
+      nextPhase: isLongBreak ? "longBreak" : "shortBreak",
+      completedWorkCycles: nextCompletedCycles,
+    } as const;
+  }
+
+  if (currentPhase === "longBreak") {
+    return {
+      nextPhase: "work",
+      completedWorkCycles: 0,
+    } as const;
+  }
+
+  return {
+    nextPhase: "work",
+    completedWorkCycles,
+  } as const;
+};
 
 // ─── Custom Date Picker ───────────────────────────────────────────────────────
 
@@ -313,8 +364,13 @@ export const FocusMode: React.FC<FocusModeProps> = ({
   onComplete,
   onUpdate,
   autoStart,
+  pomodoro,
 }) => {
-  const [timeLeft, setTimeLeft] = useState(25 * 60);
+  const [phase, setPhase] = useState<PomodoroPhase>("work");
+  const [completedWorkCycles, setCompletedWorkCycles] = useState(0);
+  const [timeLeft, setTimeLeft] = useState(() =>
+    getPhaseDurationSeconds("work", pomodoro),
+  );
   const [isActive, setIsActive] = useState(autoStart);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -326,11 +382,57 @@ export const FocusMode: React.FC<FocusModeProps> = ({
     undefined,
   );
   const [lastTaskId, setLastTaskId] = useState<string | null>(null);
+  const storageKey = task ? `airflow-pomodoro-${task.id}` : null;
+  const pomodoroConfigKey = `${pomodoro.workDuration}-${pomodoro.shortBreakDuration}-${pomodoro.longBreakDuration}-${pomodoro.cyclesUntilLongBreak}-${pomodoro.autoStartBreaks}`;
+  const loadedPomodoroConfigKeyRef = useRef(pomodoroConfigKey);
+
+  const initTimerFromCurrentConfig = () => {
+    loadedPomodoroConfigKeyRef.current = pomodoroConfigKey;
+    setPhase("work");
+    setCompletedWorkCycles(0);
+    setTimeLeft(getPhaseDurationSeconds("work", pomodoro));
+    setIsActive(autoStart);
+  };
 
   useEffect(() => {
     if (task && task.id !== lastTaskId) {
-      setTimeLeft(25 * 60);
-      setIsActive(autoStart);
+      if (!lastTaskId && storageKey) {
+        try {
+          const saved = localStorage.getItem(storageKey);
+          if (saved) {
+            const parsed = JSON.parse(saved) as {
+              phase?: PomodoroPhase;
+              timeLeft?: number;
+              completedWorkCycles?: number;
+              isActive?: boolean;
+              pomodoroConfigKey?: string;
+            };
+
+            if (parsed.pomodoroConfigKey !== pomodoroConfigKey) {
+              initTimerFromCurrentConfig();
+              localStorage.removeItem(storageKey);
+            } else {
+              loadedPomodoroConfigKeyRef.current = pomodoroConfigKey;
+              const restoredPhase = parsed.phase ?? "work";
+              const restoredCycles = parsed.completedWorkCycles ?? 0;
+              setPhase(restoredPhase);
+              setCompletedWorkCycles(restoredCycles);
+              setTimeLeft(
+                parsed.timeLeft ??
+                  getPhaseDurationSeconds(restoredPhase, pomodoro),
+              );
+              setIsActive(parsed.isActive ?? autoStart);
+            }
+          } else {
+            initTimerFromCurrentConfig();
+          }
+        } catch {
+          initTimerFromCurrentConfig();
+        }
+      } else {
+        initTimerFromCurrentConfig();
+      }
+
       setLastTaskId(task.id);
       setEditedTitle(task.title);
       setEditedPriority(task.priority || 1);
@@ -339,21 +441,91 @@ export const FocusMode: React.FC<FocusModeProps> = ({
       setEditedProjectId(task.projectId);
       setIsEditing(false);
     }
-  }, [task?.id, lastTaskId, task]);
+  }, [
+    task?.id,
+    lastTaskId,
+    task,
+    autoStart,
+    pomodoro,
+    storageKey,
+    pomodoroConfigKey,
+  ]);
+
+  useEffect(() => {
+    if (!task) return;
+    if (loadedPomodoroConfigKeyRef.current !== pomodoroConfigKey) {
+      initTimerFromCurrentConfig();
+    }
+  }, [task?.id, pomodoroConfigKey]);
 
   useEffect(() => {
     let interval: any = null;
     if (isActive && timeLeft > 0) {
       interval = setInterval(() => setTimeLeft((p) => p - 1), 1000);
-    } else if (timeLeft === 0) {
-      setIsActive(false);
     }
     return () => clearInterval(interval);
   }, [isActive, timeLeft]);
 
+  useEffect(() => {
+    if (!task || timeLeft > 0) return;
+
+    const { nextPhase, completedWorkCycles: nextCompletedCycles } =
+      getNextPhase(phase, completedWorkCycles, pomodoro);
+
+    const nextDuration = getPhaseDurationSeconds(nextPhase, pomodoro);
+    setPhase(nextPhase);
+    setCompletedWorkCycles(nextCompletedCycles);
+    setTimeLeft(nextDuration);
+    setIsActive(nextPhase === "work" ? autoStart : pomodoro.autoStartBreaks);
+  }, [timeLeft, task, phase, completedWorkCycles, pomodoro, autoStart]);
+
+  useEffect(() => {
+    if (!storageKey) return;
+
+    localStorage.setItem(
+      storageKey,
+      JSON.stringify({
+        phase,
+        timeLeft,
+        completedWorkCycles,
+        isActive,
+        pomodoroConfigKey: loadedPomodoroConfigKeyRef.current,
+        updatedAt: Date.now(),
+      }),
+    );
+  }, [phase, timeLeft, completedWorkCycles, isActive, storageKey]);
+
   const formatTime = (s: number) => {
     const m = Math.floor(s / 60);
     return `${m.toString().padStart(2, "0")}:${(s % 60).toString().padStart(2, "0")}`;
+  };
+
+  const totalCycles = pomodoro.cyclesUntilLongBreak;
+  const phaseColorClass =
+    phase === "work"
+      ? "text-flow-accent"
+      : phase === "shortBreak"
+        ? "text-emerald-300"
+        : "text-amber-300";
+  const phaseRingColor =
+    phase === "work"
+      ? "var(--color-flow-accent)"
+      : phase === "shortBreak"
+        ? "rgb(110, 231, 183)"
+        : "rgb(251, 191, 36)";
+  const progress =
+    (timeLeft / Math.max(getPhaseDurationSeconds(phase, pomodoro), 1)) * 100;
+  const taskProject = projects.find((p) => p.id === task.projectId);
+
+  const resetTimer = () => {
+    loadedPomodoroConfigKeyRef.current = pomodoroConfigKey;
+    setPhase("work");
+    setCompletedWorkCycles(0);
+    setTimeLeft(getPhaseDurationSeconds("work", pomodoro));
+    setIsActive(autoStart);
+    if (storageKey) {
+      localStorage.removeItem(storageKey);
+    }
   };
 
   const handleSave = async (e: React.MouseEvent) => {
@@ -378,9 +550,6 @@ export const FocusMode: React.FC<FocusModeProps> = ({
   };
 
   if (!task) return null;
-
-  const progress = (timeLeft / (25 * 60)) * 100;
-  const taskProject = projects.find((p) => p.id === task.projectId);
 
   return (
     <AnimatePresence>
@@ -574,57 +743,114 @@ export const FocusMode: React.FC<FocusModeProps> = ({
           </div>
 
           {/* Timer */}
-          <div className="relative w-64 h-64 md:w-80 md:h-80 flex items-center justify-center">
-            <svg className="absolute inset-0 w-full h-full -rotate-90 pointer-events-none">
-              <circle
-                cx="50%"
-                cy="50%"
-                r="48%"
-                fill="none"
-                stroke="rgba(255,255,255,0.05)"
-                strokeWidth="4"
-              />
-              <motion.circle
-                cx="50%"
-                cy="50%"
-                r="48%"
-                fill="none"
-                stroke="var(--color-flow-accent)"
-                strokeWidth="4"
-                strokeDasharray="100 100"
-                animate={{ strokeDashoffset: 100 - progress }}
-                transition={{ duration: 1, ease: "linear" }}
-                strokeLinecap="round"
-              />
-            </svg>
-            <div className="flex flex-col items-center gap-2 relative z-20">
-              <span className="text-6xl md:text-8xl font-mono font-light tracking-tighter">
-                {formatTime(timeLeft)}
+          <div className="relative w-full max-w-md flex flex-col items-center gap-4">
+            <div className="flex flex-wrap items-center justify-center gap-2 text-[11px] font-mono uppercase tracking-[0.2em] text-white/35">
+              <span
+                className={`px-3 py-1 rounded-full border ${phaseColorClass} bg-white/[0.03] border-white/[0.08]`}
+              >
+                {POMODORO_PHASE_LABELS[phase]}
               </span>
-              <div className="flex items-center gap-4">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setIsActive(!isActive);
-                  }}
-                  className="p-4 rounded-full bg-white/5 hover:bg-white/10 transition-all active:scale-90 z-30"
-                >
-                  {isActive ? (
-                    <Pause className="w-8 h-8" />
-                  ) : (
-                    <Play className="w-8 h-8" />
-                  )}
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setIsActive(false);
-                    setTimeLeft(25 * 60);
-                  }}
-                  className="p-4 rounded-full bg-white/5 hover:bg-white/10 transition-all active:scale-90 z-30"
-                >
-                  <RotateCcw className="w-8 h-8" />
-                </button>
+              <span className="px-3 py-1 rounded-full border border-white/[0.08] bg-white/[0.03]">
+                Siguiente:{" "}
+                {
+                  POMODORO_PHASE_LABELS[
+                    phase === "work"
+                      ? completedWorkCycles + 1 >= totalCycles
+                        ? "longBreak"
+                        : "shortBreak"
+                      : phase === "longBreak"
+                        ? "work"
+                        : "work"
+                  ]
+                }
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-mono uppercase tracking-[0.22em] text-white/30">
+                Ciclos
+              </span>
+              <div className="flex items-center gap-1.5">
+                {Array.from({ length: totalCycles }).map((_, index) => {
+                  const isActiveCycle = index < completedWorkCycles;
+                  const isCurrentCycle =
+                    index === completedWorkCycles && phase === "work";
+                  return (
+                    <span
+                      key={index}
+                      className={`h-2.5 w-2.5 rounded-full transition-all ${
+                        isActiveCycle
+                          ? "bg-flow-accent shadow-[0_0_10px_rgba(59,130,246,0.45)]"
+                          : isCurrentCycle
+                            ? "bg-white/70 scale-110"
+                            : "bg-white/15"
+                      }`}
+                    />
+                  );
+                })}
+              </div>
+              <button
+                type="button"
+                onClick={resetTimer}
+                className="ml-2 inline-flex items-center gap-1 rounded-full border border-white/[0.08] bg-white/[0.03] px-2.5 py-1 text-[10px] font-mono uppercase tracking-widest text-white/40 hover:text-white/80 hover:bg-white/[0.08] transition-all"
+                title="Reset cycles"
+              >
+                <RotateCcw className="w-3 h-3" />
+                Reset cycles
+              </button>
+            </div>
+
+            <div className="relative w-64 h-64 md:w-80 md:h-80 flex items-center justify-center">
+              <svg className="absolute inset-0 w-full h-full -rotate-90 pointer-events-none">
+                <circle
+                  cx="50%"
+                  cy="50%"
+                  r="48%"
+                  fill="none"
+                  stroke="rgba(255,255,255,0.05)"
+                  strokeWidth="4"
+                />
+                <motion.circle
+                  cx="50%"
+                  cy="50%"
+                  r="48%"
+                  fill="none"
+                  stroke={phaseRingColor}
+                  strokeWidth="4"
+                  strokeDasharray="100 100"
+                  animate={{ strokeDashoffset: 100 - progress }}
+                  transition={{ duration: 1, ease: "linear" }}
+                  strokeLinecap="round"
+                />
+              </svg>
+              <div className="flex flex-col items-center gap-2 relative z-20">
+                <span className="text-6xl md:text-8xl font-mono font-light tracking-tighter text-white">
+                  {formatTime(timeLeft)}
+                </span>
+                <div className="flex items-center gap-4">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsActive(!isActive);
+                    }}
+                    className="p-4 rounded-full bg-white/5 hover:bg-white/10 transition-all active:scale-90 z-30"
+                  >
+                    {isActive ? (
+                      <Pause className="w-8 h-8" />
+                    ) : (
+                      <Play className="w-8 h-8" />
+                    )}
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      resetTimer();
+                    }}
+                    className="p-4 rounded-full bg-white/5 hover:bg-white/10 transition-all active:scale-90 z-30"
+                  >
+                    <RotateCcw className="w-8 h-8" />
+                  </button>
+                </div>
               </div>
             </div>
           </div>

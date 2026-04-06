@@ -27,6 +27,11 @@ model UserSettings {
   user                    User     @relation(fields: [userId], references: [id])
   userId                  String   @unique
   autoStartPomodoro       Boolean  @default(false)
+  pomodoroWorkDuration    Int      @default(25)
+  pomodoroShortBreakDuration Int   @default(5)
+  pomodoroLongBreakDuration Int    @default(15)
+  pomodoroCyclesUntilLongBreak Int @default(4)
+  pomodoroAutoStartBreaks  Boolean  @default(true)
   showKanbanHealthCheck   Boolean  @default(true)
   weekStartsOn            Int      @default(1) // 0: Domingo, 1: Lunes
   vibrationEnabled        Boolean  @default(true)

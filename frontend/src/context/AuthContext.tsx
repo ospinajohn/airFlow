@@ -3,6 +3,11 @@ import apiClient from "../api/client";
 
 export interface UserSettings {
   autoStartPomodoro: boolean;
+  pomodoroWorkDuration: number;
+  pomodoroShortBreakDuration: number;
+  pomodoroLongBreakDuration: number;
+  pomodoroCyclesUntilLongBreak: number;
+  pomodoroAutoStartBreaks: boolean;
   showKanbanHealthCheck: boolean;
   weekStartsOn: number;
   vibrationEnabled: boolean;

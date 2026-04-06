@@ -75,6 +75,40 @@ function LogoutIcon({ size = 16 }: { size?: number }) {
 
 function Dashboard() {
   const { logout, user, settings, updateSettings } = useAuth();
+  const LOCAL_POMODORO_SETTINGS_KEY = "airflow-pomodoro-settings";
+  const readLocalPomodoroSettings = () => {
+    try {
+      const raw = localStorage.getItem(LOCAL_POMODORO_SETTINGS_KEY);
+      return raw
+        ? (JSON.parse(raw) as {
+            pomodoroWorkDuration?: number;
+            pomodoroShortBreakDuration?: number;
+            pomodoroLongBreakDuration?: number;
+            pomodoroCyclesUntilLongBreak?: number;
+            pomodoroAutoStartBreaks?: boolean;
+          })
+        : {};
+    } catch {
+      return {};
+    }
+  };
+  const POMODORO_PRESETS = [
+    { label: "25 / 5 / 15", work: 25, shortBreak: 5, longBreak: 15, cycles: 4 },
+    {
+      label: "50 / 10 / 20",
+      work: 50,
+      shortBreak: 10,
+      longBreak: 20,
+      cycles: 4,
+    },
+    {
+      label: "90 / 15 / 30",
+      work: 90,
+      shortBreak: 15,
+      longBreak: 30,
+      cycles: 4,
+    },
+  ];
   const PROJECT_COLORS = [
     "#3b82f6",
     "#10b981",
@@ -98,6 +132,67 @@ function Dashboard() {
 
   // Estados locales que se sincronizan con las configuraciones del backend
   const [autoStartPomodoro, setAutoStartPomodoro] = useState(false);
+  const [pomodoroWorkDuration, setPomodoroWorkDuration] = useState(() => {
+    try {
+      const raw = localStorage.getItem(LOCAL_POMODORO_SETTINGS_KEY);
+      if (!raw) return 25;
+      const parsed = JSON.parse(raw) as { pomodoroWorkDuration?: number };
+      return parsed.pomodoroWorkDuration ?? 25;
+    } catch {
+      return 25;
+    }
+  });
+  const [pomodoroShortBreakDuration, setPomodoroShortBreakDuration] = useState(
+    () => {
+      try {
+        const raw = localStorage.getItem(LOCAL_POMODORO_SETTINGS_KEY);
+        if (!raw) return 5;
+        const parsed = JSON.parse(raw) as {
+          pomodoroShortBreakDuration?: number;
+        };
+        return parsed.pomodoroShortBreakDuration ?? 5;
+      } catch {
+        return 5;
+      }
+    },
+  );
+  const [pomodoroLongBreakDuration, setPomodoroLongBreakDuration] = useState(
+    () => {
+      try {
+        const raw = localStorage.getItem(LOCAL_POMODORO_SETTINGS_KEY);
+        if (!raw) return 15;
+        const parsed = JSON.parse(raw) as {
+          pomodoroLongBreakDuration?: number;
+        };
+        return parsed.pomodoroLongBreakDuration ?? 15;
+      } catch {
+        return 15;
+      }
+    },
+  );
+  const [pomodoroCyclesUntilLongBreak, setPomodoroCyclesUntilLongBreak] =
+    useState(() => {
+      try {
+        const raw = localStorage.getItem(LOCAL_POMODORO_SETTINGS_KEY);
+        if (!raw) return 4;
+        const parsed = JSON.parse(raw) as {
+          pomodoroCyclesUntilLongBreak?: number;
+        };
+        return parsed.pomodoroCyclesUntilLongBreak ?? 4;
+      } catch {
+        return 4;
+      }
+    });
+  const [pomodoroAutoStartBreaks, setPomodoroAutoStartBreaks] = useState(() => {
+    try {
+      const raw = localStorage.getItem(LOCAL_POMODORO_SETTINGS_KEY);
+      if (!raw) return true;
+      const parsed = JSON.parse(raw) as { pomodoroAutoStartBreaks?: boolean };
+      return parsed.pomodoroAutoStartBreaks ?? true;
+    } catch {
+      return true;
+    }
+  });
   const [showKanbanHealthCheck, setShowKanbanHealthCheck] = useState(false);
   const [weekStartsOn, setWeekStartsOn] = useState<0 | 1>(1);
   const [vibrationEnabled, setVibrationEnabled] = useState(true);
@@ -106,7 +201,34 @@ function Dashboard() {
   // Sincronizar estados locales con settings del AuthContext
   useEffect(() => {
     if (settings) {
+      const localPomodoro = readLocalPomodoroSettings();
+      const nextWork =
+        localPomodoro.pomodoroWorkDuration ??
+        settings.pomodoroWorkDuration ??
+        25;
+      const nextShort =
+        localPomodoro.pomodoroShortBreakDuration ??
+        settings.pomodoroShortBreakDuration ??
+        5;
+      const nextLong =
+        localPomodoro.pomodoroLongBreakDuration ??
+        settings.pomodoroLongBreakDuration ??
+        15;
+      const nextCycles =
+        localPomodoro.pomodoroCyclesUntilLongBreak ??
+        settings.pomodoroCyclesUntilLongBreak ??
+        4;
+      const nextAutoBreaks =
+        localPomodoro.pomodoroAutoStartBreaks ??
+        settings.pomodoroAutoStartBreaks ??
+        true;
+
       setAutoStartPomodoro(settings.autoStartPomodoro);
+      setPomodoroWorkDuration(nextWork);
+      setPomodoroShortBreakDuration(nextShort);
+      setPomodoroLongBreakDuration(nextLong);
+      setPomodoroCyclesUntilLongBreak(nextCycles);
+      setPomodoroAutoStartBreaks(nextAutoBreaks);
       setShowKanbanHealthCheck(settings.showKanbanHealthCheck);
       setWeekStartsOn(settings.weekStartsOn as 0 | 1);
       setVibrationEnabled(settings.vibrationEnabled);
@@ -117,8 +239,19 @@ function Dashboard() {
       ) {
         setTheme(settings.theme);
       }
+
+      localStorage.setItem(
+        LOCAL_POMODORO_SETTINGS_KEY,
+        JSON.stringify({
+          pomodoroWorkDuration: nextWork,
+          pomodoroShortBreakDuration: nextShort,
+          pomodoroLongBreakDuration: nextLong,
+          pomodoroCyclesUntilLongBreak: nextCycles,
+          pomodoroAutoStartBreaks: nextAutoBreaks,
+        }),
+      );
     }
-  }, [settings]);
+  }, [settings, LOCAL_POMODORO_SETTINGS_KEY]);
 
   useEffect(() => {
     if (theme === "light") {
@@ -222,6 +355,59 @@ function Dashboard() {
       await updateSettings({ vibrationEnabled: newVal });
     } catch (e) {
       setVibrationEnabled(!newVal);
+    }
+  };
+
+  const setPomodoroSettingsLocal = (next: {
+    pomodoroWorkDuration?: number;
+    pomodoroShortBreakDuration?: number;
+    pomodoroLongBreakDuration?: number;
+    pomodoroCyclesUntilLongBreak?: number;
+    pomodoroAutoStartBreaks?: boolean;
+  }) => {
+    if (next.pomodoroWorkDuration !== undefined)
+      setPomodoroWorkDuration(next.pomodoroWorkDuration);
+    if (next.pomodoroShortBreakDuration !== undefined)
+      setPomodoroShortBreakDuration(next.pomodoroShortBreakDuration);
+    if (next.pomodoroLongBreakDuration !== undefined)
+      setPomodoroLongBreakDuration(next.pomodoroLongBreakDuration);
+    if (next.pomodoroCyclesUntilLongBreak !== undefined)
+      setPomodoroCyclesUntilLongBreak(next.pomodoroCyclesUntilLongBreak);
+    if (next.pomodoroAutoStartBreaks !== undefined)
+      setPomodoroAutoStartBreaks(next.pomodoroAutoStartBreaks);
+
+    const persisted = {
+      pomodoroWorkDuration: next.pomodoroWorkDuration ?? pomodoroWorkDuration,
+      pomodoroShortBreakDuration:
+        next.pomodoroShortBreakDuration ?? pomodoroShortBreakDuration,
+      pomodoroLongBreakDuration:
+        next.pomodoroLongBreakDuration ?? pomodoroLongBreakDuration,
+      pomodoroCyclesUntilLongBreak:
+        next.pomodoroCyclesUntilLongBreak ?? pomodoroCyclesUntilLongBreak,
+      pomodoroAutoStartBreaks:
+        next.pomodoroAutoStartBreaks ?? pomodoroAutoStartBreaks,
+    };
+
+    localStorage.setItem(
+      LOCAL_POMODORO_SETTINGS_KEY,
+      JSON.stringify(persisted),
+    );
+  };
+
+  const applyPomodoroSettings = async (next: {
+    pomodoroWorkDuration?: number;
+    pomodoroShortBreakDuration?: number;
+    pomodoroLongBreakDuration?: number;
+    pomodoroCyclesUntilLongBreak?: number;
+    pomodoroAutoStartBreaks?: boolean;
+  }) => {
+    setPomodoroSettingsLocal(next);
+
+    try {
+      await updateSettings(next);
+    } catch (e) {
+      // Fallback local: permite seguir usando presets aunque el backend aún no soporte estos campos.
+      console.warn("No se pudieron guardar ajustes de Pomodoro en backend", e);
     }
   };
 
@@ -1340,6 +1526,179 @@ function Dashboard() {
                   </button>
                 </div>
 
+                <div className="p-4 bg-white/5 rounded-xl space-y-4">
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium">Pomodoro</p>
+                    <p className="text-xs text-white/40">
+                      Ajusta los rangos de trabajo y descanso, o usa un preset
+                      rápido.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    {POMODORO_PRESETS.map((preset) => {
+                      const isActive =
+                        pomodoroWorkDuration === preset.work &&
+                        pomodoroShortBreakDuration === preset.shortBreak &&
+                        pomodoroLongBreakDuration === preset.longBreak &&
+                        pomodoroCyclesUntilLongBreak === preset.cycles;
+
+                      return (
+                        <button
+                          key={preset.label}
+                          onClick={() =>
+                            applyPomodoroSettings({
+                              pomodoroWorkDuration: preset.work,
+                              pomodoroShortBreakDuration: preset.shortBreak,
+                              pomodoroLongBreakDuration: preset.longBreak,
+                              pomodoroCyclesUntilLongBreak: preset.cycles,
+                            })
+                          }
+                          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                            isActive
+                              ? "bg-flow-accent text-white"
+                              : "bg-white/5 text-white/40 hover:text-white/70 hover:bg-white/10"
+                          }`}
+                        >
+                          {preset.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <label className="space-y-1">
+                      <span className="text-[11px] text-white/40">
+                        Trabajo (min)
+                      </span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={120}
+                        value={pomodoroWorkDuration}
+                        onChange={(e) => {
+                          const value = Math.min(
+                            120,
+                            Math.max(1, Number(e.target.value) || 1),
+                          );
+                          setPomodoroSettingsLocal({
+                            pomodoroWorkDuration: value,
+                          });
+                        }}
+                        onBlur={() =>
+                          applyPomodoroSettings({
+                            pomodoroWorkDuration,
+                          })
+                        }
+                        className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-sm outline-none focus:border-flow-accent"
+                      />
+                    </label>
+                    <label className="space-y-1">
+                      <span className="text-[11px] text-white/40">
+                        Descanso corto (min)
+                      </span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={60}
+                        value={pomodoroShortBreakDuration}
+                        onChange={(e) => {
+                          const value = Math.min(
+                            60,
+                            Math.max(1, Number(e.target.value) || 1),
+                          );
+                          setPomodoroSettingsLocal({
+                            pomodoroShortBreakDuration: value,
+                          });
+                        }}
+                        onBlur={() =>
+                          applyPomodoroSettings({
+                            pomodoroShortBreakDuration,
+                          })
+                        }
+                        className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-sm outline-none focus:border-flow-accent"
+                      />
+                    </label>
+                    <label className="space-y-1">
+                      <span className="text-[11px] text-white/40">
+                        Descanso largo (min)
+                      </span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={90}
+                        value={pomodoroLongBreakDuration}
+                        onChange={(e) => {
+                          const value = Math.min(
+                            90,
+                            Math.max(1, Number(e.target.value) || 1),
+                          );
+                          setPomodoroSettingsLocal({
+                            pomodoroLongBreakDuration: value,
+                          });
+                        }}
+                        onBlur={() =>
+                          applyPomodoroSettings({
+                            pomodoroLongBreakDuration,
+                          })
+                        }
+                        className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-sm outline-none focus:border-flow-accent"
+                      />
+                    </label>
+                    <label className="space-y-1">
+                      <span className="text-[11px] text-white/40">
+                        Ciclos para descanso largo
+                      </span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={12}
+                        value={pomodoroCyclesUntilLongBreak}
+                        onChange={(e) => {
+                          const value = Math.min(
+                            12,
+                            Math.max(1, Number(e.target.value) || 1),
+                          );
+                          setPomodoroSettingsLocal({
+                            pomodoroCyclesUntilLongBreak: value,
+                          });
+                        }}
+                        onBlur={() =>
+                          applyPomodoroSettings({
+                            pomodoroCyclesUntilLongBreak,
+                          })
+                        }
+                        className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-sm outline-none focus:border-flow-accent"
+                      />
+                    </label>
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 bg-black/15 rounded-xl border border-white/5">
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium">
+                        Auto-inicio de descansos
+                      </p>
+                      <p className="text-xs text-white/40">
+                        Pasa solo al siguiente bloque cuando termines el
+                        trabajo.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() =>
+                        applyPomodoroSettings({
+                          pomodoroAutoStartBreaks: !pomodoroAutoStartBreaks,
+                        })
+                      }
+                      className={`w-12 h-6 rounded-full transition-colors relative ${pomodoroAutoStartBreaks ? "bg-flow-accent" : "bg-white/10"}`}
+                    >
+                      <motion.div
+                        animate={{ x: pomodoroAutoStartBreaks ? 24 : 4 }}
+                        className="absolute top-1 w-4 h-4 rounded-full bg-white shadow-sm"
+                      />
+                    </button>
+                  </div>
+                </div>
+
                 <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl">
                   <div className="space-y-1">
                     <p className="text-sm font-medium">Inicio de semana</p>
@@ -1796,6 +2155,13 @@ function Dashboard() {
         onComplete={handleTaskComplete}
         onUpdate={handleUpdateTask}
         autoStart={autoStartPomodoro}
+        pomodoro={{
+          workDuration: pomodoroWorkDuration,
+          shortBreakDuration: pomodoroShortBreakDuration,
+          longBreakDuration: pomodoroLongBreakDuration,
+          cyclesUntilLongBreak: pomodoroCyclesUntilLongBreak,
+          autoStartBreaks: pomodoroAutoStartBreaks,
+        }}
       />
 
       {/* Keyboard Hint */}
